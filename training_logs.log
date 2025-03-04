@@ -1,0 +1,86 @@
+03/02/2025 17:14:01 - INFO - __main__ - Loading dataset...
+03/02/2025 17:14:13 - WARNING - datasets.load - Using the latest cached version of the dataset since melisekm/natural-disasters-from-social-media couldn't be found on the Hugging Face Hub
+03/02/2025 17:14:13 - WARNING - datasets.packaged_modules.cache.cache - Found the latest cached dataset configuration 'default' at C:\Users\dddddddddddddddd\.cache\huggingface\datasets\melisekm___natural-disasters-from-social-media\default\0.0.0\b16966b68eba8f44b6534bc8cd82e9fa02c53188 (last modified on Sun Mar  2 16:26:17 2025).
+03/02/2025 17:14:13 - INFO - __main__ - Performing data analysis...
+03/02/2025 17:14:13 - INFO - __main__ - Starting dataset analysis...
+03/02/2025 17:14:14 - INFO - __main__ - Total samples: 169109
+03/02/2025 17:14:14 - INFO - __main__ - Number of classes: 19
+03/02/2025 17:14:14 - INFO - __main__ - Sample count per class:
+label
+unknown        61296
+hurricane      37894
+flood          22132
+earthquake     18715
+wild_fire       6968
+tornado         6948
+typhoon         5972
+landslide       2209
+cyclone         2206
+storm           1348
+forest_fire     1274
+meteor           590
+bush_fire        508
+haze             444
+volcano          306
+blizzard         163
+dust_storm        64
+tsunami           60
+avalanche         12
+Name: count, dtype: int64
+03/02/2025 17:14:14 - INFO - __main__ - Class distribution (%):
+label
+unknown        36.246445
+hurricane      22.408033
+flood          13.087417
+earthquake     11.066827
+wild_fire       4.120419
+tornado         4.108593
+typhoon         3.531450
+landslide       1.306258
+cyclone         1.304484
+storm           0.797119
+forest_fire     0.753360
+meteor          0.348887
+bush_fire       0.300398
+haze            0.262553
+volcano         0.180948
+blizzard        0.096388
+dust_storm      0.037845
+tsunami         0.035480
+avalanche       0.007096
+Name: count, dtype: float64
+03/02/2025 17:14:14 - INFO - __main__ - Text length statistics:
+count    169109.000000
+mean        102.341697
+std          46.203673
+min          20.000000
+25%          69.000000
+50%         100.000000
+75%         129.000000
+max         312.000000
+Name: text_length, dtype: float64
+03/02/2025 17:14:15 - INFO - __main__ - Applying text cleaning...
+03/02/2025 17:14:31 - INFO - __main__ - All Unique Disaster Types: ['avalanche', 'blizzard', 'bush_fire', 'cyclone', 'dust_storm', 'earthquake', 'flood', 'forest_fire', 'haze', 'hurricane', 'landslide', 'meteor', 'storm', 'tornado', 'tsunami', 'typhoon', 'unknown', 'volcano', 'wild_fire']
+03/02/2025 17:14:31 - INFO - __main__ - Number of Labels: 19
+03/02/2025 17:14:32 - INFO - __main__ - Calculated class weights: {'tornado': 1.281012332212223, 'hurricane': 0.23487817818679807, 'unknown': 0.14520480429735264, 'earthquake': 0.4755796785578694, 'typhoon': 1.4903673282335108, 'flood': 0.4021540612782634, 'forest_fire': 6.986243080228043, 'cyclone': 4.034666221310302, 'wild_fire': 1.277335488549157, 'meteor': 15.085548617305976, 'storm': 6.602725285022646, 'landslide': 4.029186819470587, 'haze': 20.04611190137506, 'volcano': 29.086515307877537, 'bush_fire': 17.5206174886034, 'blizzard': 54.60413303196642, 'tsunami': 148.34122807017545, 'dust_storm': 139.06990131578948, 'avalanche': 741.7061403508771}
+03/02/2025 17:14:32 - INFO - __main__ - Augmenting 169109 samples with factor 0.3...
+03/02/2025 17:14:33 - INFO - __main__ - Data augmentation complete. New dataset size: 218749 (original: 169109)
+03/02/2025 17:14:47 - INFO - __main__ - Starting hyperparameter optimization with 5 trials...
+03/03/2025 10:16:06 - INFO - __main__ - Best trial: 4
+03/03/2025 10:16:06 - INFO - __main__ - Best F1 score: 0.8723
+03/03/2025 10:16:06 - INFO - __main__ - Best hyperparameters: {'learning_rate': 3.398120764079032e-05, 'batch_size': 32, 'weight_decay': 0.03621830110878071}
+03/03/2025 10:16:14 - INFO - __main__ - Starting model training...
+03/03/2025 11:07:34 - INFO - __main__ - 
+Evaluation Metrics on Test Set:
+03/03/2025 11:07:34 - INFO - __main__ - accuracy: 0.8438
+03/03/2025 11:07:34 - INFO - __main__ - f1_weighted: 0.8378
+03/03/2025 11:07:34 - INFO - __main__ - precision_weighted: 0.8443
+03/03/2025 11:07:34 - INFO - __main__ - recall_weighted: 0.8438
+03/03/2025 11:07:34 - INFO - __main__ - 
+Detailed Classification Report on Test Set:
+03/03/2025 11:07:34 - INFO - __main__ - 
+{'avalanche': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 1.0}, 'blizzard': {'precision': 0.5, 'recall': 0.35, 'f1-score': 0.4117647058823529, 'support': 20.0}, 'bush_fire': {'precision': 1.0, 'recall': 0.8125, 'f1-score': 0.896551724137931, 'support': 64.0}, 'cyclone': {'precision': 0.9194139194139194, 'recall': 0.9094202898550725, 'f1-score': 0.9143897996357012, 'support': 276.0}, 'dust_storm': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 8.0}, 'earthquake': {'precision': 0.9359430604982206, 'recall': 0.8995297135528003, 'f1-score': 0.9173751907564858, 'support': 2339.0}, 'flood': {'precision': 0.8543689320388349, 'recall': 0.667871340802313, 'f1-score': 0.7496957403651116, 'support': 2767.0}, 'forest_fire': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 159.0}, 'haze': {'precision': 0.873015873015873, 'recall': 1.0, 'f1-score': 0.9322033898305084, 'support': 55.0}, 'hurricane': {'precision': 0.9489868891537545, 'recall': 0.8404053198226725, 'f1-score': 0.8914017017465292, 'support': 4737.0}, 'landslide': {'precision': 0.6142322097378277, 'recall': 0.5942028985507246, 'f1-score': 0.6040515653775321, 'support': 276.0}, 'meteor': {'precision': 0.9736842105263158, 'recall': 1.0, 'f1-score': 0.9866666666666666, 'support': 74.0}, 'storm': {'precision': 0.460431654676259, 'recall': 0.38095238095238093, 'f1-score': 0.4169381107491857, 'support': 168.0}, 'tornado': {'precision': 0.8010118043844857, 'recall': 0.5466052934407365, 'f1-score': 0.6497948016415869, 'support': 869.0}, 'tsunami': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 8.0}, 'typhoon': {'precision': 0.9694148936170213, 'recall': 0.9759036144578314, 'f1-score': 0.972648432288192, 'support': 747.0}, 'unknown': {'precision': 0.7766486486486487, 'recall': 0.9376141999477943, 'f1-score': 0.8495742667928098, 'support': 7662.0}, 'volcano': {'precision': 0.6744186046511628, 'recall': 0.7631578947368421, 'f1-score': 0.7160493827160495, 'support': 38.0}, 'wild_fire': {'precision': 0.8126858275520317, 'recall': 0.9414466130884042, 'f1-score': 0.8723404255319148, 'support': 871.0}, 'accuracy': 0.8437958276172004, 'macro avg': {'precision': 0.6375924488375976, 'recall': 0.6115583978530301, 'f1-score': 0.6200761002167662, 'support': 21139.0}, 'weighted avg': {'precision': 0.8443000753993559, 'recall': 0.8437958276172004, 'f1-score': 0.8377619362516121, 'support': 21139.0}}
+03/03/2025 11:07:42 - INFO - __main__ - 
+Enhanced training complete! Fine-tuned model and tokenizer saved to 'F:\AI TRAINING\results_disaster_type_roberta_enhanced_final_version'.
+03/03/2025 11:07:42 - INFO - __main__ - Training logs are saved to 'F:\AI TRAINING\logs_disaster_type_fulldata_enhanced_final_version\training_logs.log'
+03/03/2025 11:07:42 - INFO - __main__ - Visualizations are saved in 'F:\AI TRAINING\results_disaster_type_roberta_enhanced_final_version\figures'
