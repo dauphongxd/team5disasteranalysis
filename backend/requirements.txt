@@ -1,0 +1,13 @@
+# Core dependencies
+atproto>=0.0.1
+transformers>=4.0.0
+torch>=1.8.0
+emoji>=2.0.0
+python-dotenv>=0.19.0
+mysql-connector-python>=8.0.25
+
+# Optional but recommended
+numpy>=1.19.0
+tqdm>=4.62.0
+requests>=2.25.0
+logging>=0.4.9
