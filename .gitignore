@@ -1,3 +1,7 @@
 /backend/diasterweb.env
 /frontend/node_modules
-/backend/.idea
+/backend/.idea/
+/backend/*.iml
+# IDE files
+.idea/
+*.iml
