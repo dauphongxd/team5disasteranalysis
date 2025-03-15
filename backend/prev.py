@@ -350,7 +350,7 @@ def process_feed():
                     avatar = post.post.author.avatar
 
                     # Extract location from text (simplified approach)
-                    lat, lon = extract_location(text)
+                    # lat, lon = extract_location(text)
 
                     # Check for media
                     has_media = False
