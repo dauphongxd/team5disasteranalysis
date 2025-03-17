@@ -272,3 +272,19 @@ h2 { font-size: 1em; }
         text-shadow: 2px 0.5px 2px #ea36af, -1px -0.5px 2px #75fa69;
     }
 }
+
+.weather-marker {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.info-window {
+  padding: 5px;
+  max-width: 200px;
+}
+
+.info-window h3 {
+  margin-top: 0;
+  color: #1da1f2;
+}
