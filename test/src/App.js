@@ -4,6 +4,8 @@ import Filters from "./components/Filters";
 import MapSection from "./components/MapSection";
 import TweetFeed from "./components/TweetFeed";
 import HelpSection from "./components/HelpSection";
+import NWSDataViewer from "./components/NWSDataViewer";
+
 import Scene from "./components/Scene"; // Import the Three.js background
 import Timechart from "./components/Timechart";
 import "./styles.css";
@@ -11,6 +13,11 @@ import "./styles.css";
 function App() {
   const [disasterData, setDisasterData] = useState([]); // State to store JSON data
   const [selectedDisaster, setSelectedDisaster] = useState("all");
+  const [showDataViewer, setShowDataViewer] = useState(false);
+
+  const toggleDataViewer = () => {
+    setShowDataViewer(prev => !prev);
+  };
 
   useEffect(() => {
     // Fetch the JSON file from the public folder
@@ -40,11 +47,20 @@ function App() {
 
       {/* Main application content */}
       <div className="container">
-        <div class="earth-container">
-            <div class="earth"></div>
+        <div className="earth-container">
+            <div className="earth"></div>
         </div>
         <Header />
+        <div className="app-controls">
+          <button 
+            className={`control-button ${showDataViewer ? 'active' : ''}`} 
+            onClick={toggleDataViewer}
+          >
+            {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
+          </button>
+        </div>
         <Filters setSelectedDisaster={setSelectedDisaster} />
+        {showDataViewer && <NWSDataViewer />}
         <div className="main-content">
           <MapSection />
           <TweetFeed />
@@ -52,6 +68,8 @@ function App() {
         <div>
           <Timechart disasterData={disasterData} selectedDisaster={selectedDisaster} />
         </div>
+        
+        {/* Add the HelpSection component here */}
         <HelpSection disasterType={selectedDisaster} />
       </div>
     </>
