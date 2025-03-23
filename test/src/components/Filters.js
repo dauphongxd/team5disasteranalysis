@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 
-function Filters() {
-  // State for tracking the active button
+function Filters({ setSelectedDisaster }) {
   const [activeFilter, setActiveFilter] = useState("all");
 
   const filterTweets = (disasterType) => {
@@ -34,8 +33,9 @@ function Filters() {
       }
     });
 
-    // Set the active filter state
     setActiveFilter(disasterType);
+    // Notify the parent component of the selected disaster type
+    setSelectedDisaster(disasterType);
   };
 
   return (
@@ -96,7 +96,6 @@ function Filters() {
       </button>
     </div>
   );
-  
 }
 
 export default Filters;
