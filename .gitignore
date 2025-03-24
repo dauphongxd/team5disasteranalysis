@@ -6,3 +6,5 @@
 .idea/
 *.iml
 .env/
+disasterFeed.env
+*.pyc
