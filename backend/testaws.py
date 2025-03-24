@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from prettytable import PrettyTable  # Optional: for nicer table output
 
 # Load environment variables
-load_dotenv('disasterweb.env')
+load_dotenv('.env')
 
 # Print environment variables (with secrets partially hidden)
 access_key = os.getenv('AWS_ACCESS_KEY_ID', '')

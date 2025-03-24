@@ -85,7 +85,7 @@ def safe_parse_date(date_string):
 
 
 # Load environment variables
-load_dotenv('disasterweb.env')
+load_dotenv('.env')
 
 FEED_URI = 'at://did:plc:qiknc4t5rq7yngvz7g4aezq7/app.bsky.feed.generator/aaaelfwqlfugs'
 
@@ -616,7 +616,7 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
 
                             # Two different thresholds
                             threshold = 0.1  # Lower threshold for JSON/logging
-                            db_threshold = 0.7  # Higher threshold for database
+                            db_threshold = 0.8  # Higher threshold for database
 
                             # Determine disaster status
                             is_disaster = confidence_score >= threshold
