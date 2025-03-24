@@ -19,31 +19,36 @@ function TweetFeed() {
   }, []);
 
   return (
-    <div className="tweet-feed" id="tweet-feed">
-      {tweets.map((tweet) => (
-        <div className="tweet-container" key={tweet.uri}>
-          <div className="tweet-header">
-            <img src={tweet.avatar} alt="Profile Picture" className="profile-pic" />
-            <div>
+    <div className="tweet-section">
+      <div className="map-header">
+        <h3>Disaster Tweets</h3>
+      </div>
+      <div className="tweet-feed" id="tweet-feed">
+        {tweets.map((tweet) => (
+          <div className="tweet-container" key={tweet.uri}>
+            <div className="tweet-header">
+              <img src={tweet.avatar} alt="Profile Picture" className="profile-pic" />
               <div>
-                <strong>{tweet.display_name || "Unknown User"}</strong>
-              </div>
-              <div>
-                <span>@{tweet.handle}</span>
-              </div>
-              <div>
-                <small>{new Date(tweet.timestamp).toLocaleString()}</small>
+                <div>
+                  <strong>{tweet.display_name || "Unknown User"}</strong>
+                </div>
+                <div>
+                  <span>@{tweet.handle}</span>
+                </div>
+                <div>
+                  <small>{new Date(tweet.timestamp).toLocaleString()}</small>
+                </div>
               </div>
             </div>
+            <div className="tweet-content">
+              <p>{tweet.text}</p>
+            </div>
+            <div className="disaster-tag" style={{ display: "none" }}>
+              {tweet.predicted_disaster_type}
+            </div>
           </div>
-          <div className="tweet-content">
-            <p>{tweet.text}</p>
-          </div>
-          <div className="disaster-tag" style={{ display: "none" }}>
-            {tweet.predicted_disaster_type}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

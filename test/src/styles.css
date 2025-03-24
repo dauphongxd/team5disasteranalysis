@@ -37,6 +37,8 @@ canvas {
   display: flex;
   flex-direction: row;
   gap: 20px;
+  align-items: flex-start; /* Align items at the top */
+  margin-top: 10px; /* Add some space after the filters */
 }
 
 header {
@@ -81,29 +83,86 @@ h1,h2 {
 .map-section {
     flex: 1;
     min-width: 0;
+    position: relative;
+    margin-top: 0; /* Reset margin */
+    padding-top: 0; /* Ensure no top padding */
 }
 
 #map {
     width: 100%;
     height: 600px;
     border-radius: 10px;
-    margin: 0;
+    margin: 0; /* Ensure no margin */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    background-color: #eee;
+    background-color: #f5f5f5;
+    position: relative;
+}
+
+.performance-map {
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: #eee;
     color: #666;
+    font-style: italic;
+}
+
+.map-loading, .map-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 15px 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  text-align: center;
+}
+
+.map-error {
+  background-color: rgba(255, 200, 200, 0.9);
+  color: #d32f2f;
+}
+
+/* Alert type colors */
+.legend {
+  background-color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-popup-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Make map responsive */
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  #map {
+    height: 400px;
+    margin-bottom: 20px;
+  }
+}
+
+.tweet-section {
+  flex: 0 0 350px;
+  max-width: 400px;
+  width: 100%;
 }
 
 .tweet-feed {
-    flex: 0 0 350px;
-    height: 600px;
-    max-width: 400px; /* Set a fixed maximum width */
-    width: 100%; 
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 10px;
+  height: 600px;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  margin-top: 0;
 }
 
 .tweet-feed::-webkit-scrollbar {
@@ -126,6 +185,11 @@ h1,h2 {
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure first tweet container has no top margin */
+.tweet-feed .tweet-container:first-child {
+    margin-top: 0;
 }
 
 .tweet-header {
@@ -281,34 +345,758 @@ h2 { font-size: 1em; }
     background-color: #1b1e23;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    color: white;
-    text-align: center;
 }
+    /* Animation toggle button */
+.animation-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+  }
   
-.view-toggle-buttons {
-    margin-bottom: 20px;
-    text-align: center;
+  .animation-toggle button {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s;
+  }
+  
+  .animation-toggle button:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+  
+  /* Animation disabling rules */
+  .animations-disabled h1,
+  .animations-disabled h2 {
+    animation: none !important;
+    text-shadow: 0.06rem 0 0.06rem #ea36af, -0.125rem 0 0.06rem #75fa69 !important;
+  }
+  
+  .hide-animation .earth {
+    animation: none !important;
+  }
+  
+  /* Hide the earth container when animations are disabled */
+  .hide-animation {
+    opacity: 0.5;
+  }
+  
+  /* Performance Mode Styles */
+  .performance-controls {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+  }
+  
+  .performance-controls button {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    transition: background-color 0.3s;
+  }
+  
+.performance-controls button:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .performance-controls .disabled-button {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .performance-controls .performance-button {
+    background-color: rgba(255, 0, 0, 0.7);
+  }
+  
+  /* Chrome-specific performance optimizations */
+  .performance-mode {
+    /* Reduce animations and transitions */
+    animation: none !important;
+    transition: none !important;
+    
+    /* Reduce the workload for the renderer */
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    
+    /* Simplify content */
+    color: #333 !important;
+    background-color: white !important;
+  }
+  
+  .performance-mode.container {
+    background-color: #f0f0f0 !important;
+    max-width: 100% !important;
+    padding: 10px !important;
+  }
+  
+  .performance-mode.tweet-feed {
+    height: 500px !important;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+  }
+  
+  .performance-mode .tweet-container {
+    padding: 10px !important;
+    margin-bottom: 10px !important;
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+  
+  .performance-note {
+    color: #666;
+    font-style: italic;
+    margin-top: 10px;
+  }
+  
+  /* Optimize scrolling performance */
+  .tweet-feed {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Reduce CSS complexity for performance mode */
+  body.performance-mode h1,
+  body.performance-mode h2 {
+    font-family: Arial, sans-serif !important;
+    text-shadow: none !important;
+    letter-spacing: normal !important;
+    animation: none !important;
+    font-size: 24px !important;
+    color: #333 !important;
+  }
+  
+  body.performance-mode * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  /* Remove the animation toggle button when in performance mode */
+  .animation-toggle {
+    display: none;
+  }
+  
+  /* Disaster Map Icons */
+  .fire-icon {
+    width: 30px;
+    height: 30px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff4500"><path d="M12 21c4.4 0 8-3.6 8-8 0-3.28-1.97-6.09-4.79-7.33C15.65 3.11 13.88 2 12 2c-2.21 0-4 1.79-4 4 0 .73.2 1.4.53 1.98C7.19 8.62 6 10.7 6 13c0 4.4 3.6 8 8 8zm0-2c-3.31 0-6-2.69-6-6 0-1.77.79-3.36 2.02-4.44l.77-.68-.17-1.01c-.05-.31-.08-.62-.08-.94 0-1.1.9-2 2-2 1.3 0 2.38.84 2.77 2l.23.7.7-.23c3.15-1.04 5.32.38 6.24 1.39.9 1.01 1.52 2.58 1.52 4.21 0 3.31-2.69 6-6 6z"/></svg>');
+    background-repeat: no-repeat;
+    background-size: contain;
+    animation: fire-pulse 2s infinite alternate;
+  }
+  
+  @keyframes fire-pulse {
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.1); filter: brightness(1.2); }
+  }
+  
+  .hurricane-icon {
+    width: 40px;
+    height: 40px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff69b4"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M12 9l-2.5 4h5z"/><path d="M12 15l2.5-4h-5z"/></svg>');
+    background-repeat: no-repeat;
+    background-size: contain;
+    animation: hurricane-spin 8s linear infinite;
+  }
+
+
+@keyframes hurricane-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Hurricane category styling */
+  .hurricane-icon.cat1 { border: 2px solid #fffacd; }
+  .hurricane-icon.cat2 { border: 2px solid #ffa500; }
+  .hurricane-icon.cat3 { border: 2px solid #ff4500; }
+  .hurricane-icon.cat4 { border: 2px solid #ff0000; }
+  .hurricane-icon.cat5 { border: 2px solid #8b0000; }
+  
+  /* Improve the visibility of map elements */
+  .leaflet-popup-content {
+    max-width: 300px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .leaflet-popup-content strong {
+    font-size: 16px;
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+  }
+  
+  .leaflet-popup-content em {
+    color: #555;
+    font-style: italic;
+    margin-bottom: 5px;
+    display: block;
+  }
+  
+  .leaflet-popup-content a {
+    color: #0078A8;
+    text-decoration: none;
+    font-weight: bold;
+    display: inline-block;
+    margin-top: 5px;
+  }
+  
+  .leaflet-popup-content a:hover {
+    text-decoration: underline;
+  }
+  
+  /* Legend checkbox styling */
+  .legend label {
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .legend h4, .legend h5 {
+    margin-bottom: 10px;
+    color: #333;
+    font-weight: bold;
+  }
+  
+  .legend h5 {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+  
+  /* Responsive map designs */
+  @media (max-width: 768px) {
+    .legend {
+      max-width: 150px !important;
+      font-size: 12px !important;
+    }
+  }
+  
+  /* Real-time map controls */
+  .map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .map-header h3 {
+    margin: 0;
+    color: #ffffff;
+    font-family: Nintendoid1;
+    text-shadow: 0.06rem 0 0.06rem #ea36af, -0.125rem 0 0.06rem #75fa69;
+    letter-spacing: 0.125em;
+    animation-duration: 2s;
+    animation-name: textflicker;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    font-size: 1em; /* Match h2 size */
+  }
+  
+  .mobile-timestamp {
+    font-size: 0.8rem;
+    color: #aaa;
+    font-style: italic;
+    display: none;
+  }
+  
+  .timestamp {
+    font-size: 0.8rem;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 5px;
+  }
+  
+  .auto-update-note {
+    font-size: 0.7rem;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+  
+  .refresh-control {
+    background: white;
+    padding: 5px;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  }
+  
+  .refresh-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s;
+  }
+  
+  .refresh-button:hover {
+    background-color: #45a049;
+  }
+  
+  .retry-button {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    margin-top: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+  }
+  
+  .retry-button:hover {
+    background-color: #0b7dda;
+  }
+  
+  /* Improve legend styling */
+  .legend {
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  }
+  
+  .legend h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+    font-weight: bold;
+    font-size: 1rem;
+  }
+  
+  .legend h5 {
+    margin-top: 10px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #555;
+    font-weight: bold;
+  }
+  
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .mobile-timestamp {
+      display: block;
+    }
+    
+    .timestamp {
+      display: none; /* Hide in legend on mobile */
+    }
+    
+    .legend {
+      max-width: 180px !important;
+      max-height: 300px !important;
+    }
+    
+    .refresh-button {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
 }
 
-.toggle-button {
-    padding: 5px 10px;
-    margin: 0 5px;
-    font-size: 12px;
+/* NWS Data Viewer styles */
+.nws-data-viewer {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nws-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.nws-viewer-header h2 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.nws-viewer-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-control select {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+  min-width: 250px;
+}
+
+.nws-data-summary {
+  background-color: #e9ecef;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.nws-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 800px;
+  overflow-y: auto;
+}
+
+.nws-alert-item {
+  background-color: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.nws-alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #f1f3f5;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nws-alert-header:hover {
+  background-color: #e9ecef;
+}
+
+.nws-alert-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.alert-meta {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.severity {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.nws-alert-details {
+  padding: 15px;
+  font-size: 14px;
+}
+
+.nws-alert-details table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nws-alert-details th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  width: 150px;
+  vertical-align: top;
+  color: #666;
+}
+
+.nws-alert-details td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+/*
     cursor: pointer;
     border: 1px solid #ccc;
     background-color: #f9f9f9;
     border-radius: 5px;
     transition: background-color 0.3s;
-}
+} */
 
-.toggle-button.active {
-    background-color: #007bff;
-    color: white;
-    border-color: #007bff;
-}
-
-.toggle-button:hover {
-    background-color: #0056b3;
-    color: white;
-}
+.description-text {
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-line;
+  }
   
+  /* Add severity colors */
+  .nws-alert-item .severity {
+    background-color: #e9ecef;
+  }
+  
+  .nws-alert-item .severity:contains("Extreme") {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .nws-alert-item .severity:contains("Severe") {
+    background-color: #fd7e14;
+    color: white;
+  }
+  
+  .nws-alert-item .severity:contains("Moderate") {
+    background-color: #ffc107;
+    color: black;
+  }
+  
+  .nws-alert-item .severity:contains("Minor") {
+    background-color: #6c757d;
+    color: white;
+  }
+@media (max-width: 768px) {
+    .nws-viewer-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .nws-viewer-controls {
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+    }
+    
+    .filter-control {
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+    }
+    
+    .filter-control select {
+      width: 100%;
+    }
+  }
+  
+  /* App Controls */
+  .app-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  
+  .control-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  
+  .control-button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+  }
+  
+  .control-button.active {
+    background-color: #e74c3c;
+  }
+  
+  .control-button.active:hover {
+    background-color: #c0392b;
+  }
+  
+  @media (max-width: 768px) {
+    .app-controls {
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .control-button {
+      width: 100%;
+      max-width: 300px;
+    }
+  }
+  
+  /* NWS Data Statistics */
+  .nws-data-stats {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .nws-data-stats h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #343a40;
+    font-size: 18px;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .stat-item {
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dee2e6;
+  }
+  
+  .stat-label {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 5px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #343a40;
+  }
+  
+  .stat-percent {
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 2px;
+  }
+  
+  .stats-note {
+    background-color: #e9ecef;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+    border-left: 4px solid #007bff;
+  }
+  
+  .stats-note p {
+    margin: 0;
+    font-size: 14px;
+    color: #495057;
+  }
+  
+  .geometry-indicator {
+    font-size: 16px;
+    margin-right: 5px;
+  }
+  
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* Standalone Disaster Map Legend */
+  .disaster-map-legend {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .disaster-map-legend h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 1.2rem;
+  }
+  
+  .legend-section {
+    margin-top: 20px;
+  }
+  
+  .legend-section h5 {
+    margin-bottom: 10px;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    font-size: 1rem;
+  }
+  
+  .layer-toggle {
+    margin-bottom: 10px;
+  }
+  
+  .layer-toggle label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  
+  .layer-toggle input[type="checkbox"] {
+    margin-right: 8px;
+  }
+  
+  .mapping-stats {
+    margin-left: 24px;
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 4px;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  
+  .color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .legend-label {
+    font-size: 0.9rem;
+  }
+  
+  .timestamp {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 5px;
+  }
+  
+  .auto-update-note {
+    font-size: 0.8rem;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+  
+  @media (max-width: 768px) {
+    .disaster-map-legend {
+      padding: 15px;
+    }
+    
+    .legend-section {
+      margin-top: 15px;
+    }
+  }  
