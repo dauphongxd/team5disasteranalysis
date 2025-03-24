@@ -1,0 +1,218 @@
+2025-03-23 09:28:47,635 - ERROR - AWS credentials not found in environment variables
+2025-03-23 09:28:47,635 - ERROR - Failed to initialize DynamoDB: AWS credentials missing. Check your environment variables.
+2025-03-23 09:28:47,635 - ERROR - Fatal error in main: AWS credentials missing. Check your environment variables.
+2025-03-23 09:43:21,401 - ERROR - AWS credentials not found in environment variables
+2025-03-23 09:43:21,401 - ERROR - Failed to initialize DynamoDB: AWS credentials missing. Check your environment variables.
+2025-03-23 09:43:21,401 - ERROR - Fatal error in main: AWS credentials missing. Check your environment variables.
+2025-03-23 10:15:34,203 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-23 10:15:36,639 - INFO - Model loaded successfully
+2025-03-23 10:16:34,833 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-23 10:16:36,882 - INFO - Model loaded successfully
+2025-03-24 00:39:44,565 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:39:44,747 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:39:44,747 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:39:44,747 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:39:46,960 - INFO - Model loaded successfully
+2025-03-24 00:39:47,187 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:41:52,666 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:41:52,855 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:41:52,856 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:41:52,856 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:41:54,899 - INFO - Model loaded successfully
+2025-03-24 00:41:55,187 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:42:21,698 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:42:21,877 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:42:21,880 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:42:21,880 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:42:23,970 - INFO - Model loaded successfully
+2025-03-24 00:42:24,217 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:46:19,642 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:46:19,829 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:46:19,830 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:46:19,830 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:46:21,992 - INFO - Model loaded successfully
+2025-03-24 00:46:22,275 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:49:41,172 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:49:41,366 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:49:41,369 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:49:41,369 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 00:49:41,461 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:49:43,708 - INFO - Model loaded successfully
+2025-03-24 00:49:43,948 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:52:58,010 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 00:52:58,206 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 00:52:58,208 - INFO - Successfully logged in to Bluesky
+2025-03-24 00:52:58,208 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 00:52:58,298 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 00:53:00,519 - INFO - Model loaded successfully
+2025-03-24 00:53:00,740 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 00:53:01,000 - INFO - User stored: leafmithras.bsky.social
+2025-03-24 01:38:38,631 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:38:38,853 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:38:38,855 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:38:38,856 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:38:38,985 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:38:41,133 - INFO - Model loaded successfully
+2025-03-24 01:38:41,370 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:38:41,620 - INFO - User stored: thestarmy-poster.bsky.social
+2025-03-24 01:39:05,565 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:39:05,745 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:39:05,747 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:39:05,747 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:39:05,835 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:39:07,819 - INFO - Model loaded successfully
+2025-03-24 01:39:08,049 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:40:11,725 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:40:11,915 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:40:11,917 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:40:11,917 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:40:12,009 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:40:14,046 - INFO - Model loaded successfully
+2025-03-24 01:40:14,301 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:40:40,445 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:40:40,620 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:40:40,623 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:40:40,623 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:40:40,706 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:40:42,695 - INFO - Model loaded successfully
+2025-03-24 01:40:42,928 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:41:11,794 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:41:11,972 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:41:11,975 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:41:11,975 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:41:12,097 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:41:14,227 - INFO - Model loaded successfully
+2025-03-24 01:41:14,467 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:50:18,304 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:50:18,502 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:50:18,504 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:50:18,505 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:50:18,597 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:50:20,744 - INFO - Model loaded successfully
+2025-03-24 01:50:21,163 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:50:22,126 - INFO - User stored: volcanoviews.stefanbohacek.online.ap.brid.gy
+2025-03-24 01:50:22,269 - INFO - User stored: bitshifter01.bsky.social
+2025-03-24 01:50:22,496 - INFO - User stored: edengk.bsky.social
+2025-03-24 01:50:22,752 - INFO - User stored: thebookgoblin1404.bsky.social
+2025-03-24 01:50:22,886 - INFO - User stored: quakewatch.bsky.social
+2025-03-24 01:50:23,100 - INFO - User stored: miihei.bsky.social
+2025-03-24 01:50:23,281 - INFO - User stored: drstidhum.bsky.social
+2025-03-24 01:50:23,435 - INFO - User stored: milenials4guilotin.bsky.social
+2025-03-24 01:50:23,803 - INFO - User stored: ews.volcanoyt.com
+2025-03-24 01:50:23,939 - INFO - User stored: taghrid.bsky.social
+2025-03-24 01:50:24,244 - INFO - User stored: worldeqlocator.bsky.social
+2025-03-24 01:50:24,632 - INFO - User stored: biihfranca.bsky.social
+2025-03-24 01:50:24,760 - INFO - User stored: brandontbishop.bsky.social
+2025-03-24 01:50:24,905 - INFO - User stored: chuckgoat.bsky.social
+2025-03-24 01:50:25,197 - INFO - User stored: crypto-news-zh.bsky.social
+2025-03-24 01:50:25,328 - INFO - User stored: crypto-news-pt.bsky.social
+2025-03-24 01:50:25,470 - INFO - User stored: physicssocph-bot.bsky.social
+2025-03-24 01:50:25,684 - INFO - User stored: tradwhitebriefs.bsky.social
+2025-03-24 01:50:25,834 - INFO - User stored: misumisurecords.bsky.social
+2025-03-24 01:50:25,976 - INFO - User stored: federacionanarquista.net
+2025-03-24 01:50:26,207 - INFO - User stored: spiraledu.bsky.social
+2025-03-24 01:50:26,359 - INFO - User stored: physicsgeoph-bot.bsky.social
+2025-03-24 01:50:26,494 - INFO - User stored: newshoundai.bsky.social
+2025-03-24 01:55:53,659 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:55:53,848 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:55:53,848 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:55:53,849 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:55:53,939 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:55:56,024 - INFO - Model loaded successfully
+2025-03-24 01:55:56,266 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:56:29,438 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:56:29,617 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:56:29,619 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:56:29,619 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:56:29,703 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:56:31,774 - INFO - Model loaded successfully
+2025-03-24 01:56:32,009 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:56:32,909 - INFO - Post stored: at://did:plc:vfkow4vkkx2imuhorrvdb2g2/app.bsky.feed.post/3ll45kyfs5pn2
+2025-03-24 01:56:33,073 - INFO - Post stored: at://did:plc:4czo32y65xdk6evzjufmx43t/app.bsky.feed.post/3ll45kkhyzc2y
+2025-03-24 01:56:33,198 - INFO - Post stored: at://did:plc:4xtbdet5keuguykxvcuil4z7/app.bsky.feed.post/3ll45egsnqc2o
+2025-03-24 01:56:33,341 - INFO - Post stored: at://did:plc:o65iyh5hmrplb3pzql4tve73/app.bsky.feed.post/3ll45dmzz2s2j
+2025-03-24 01:56:33,477 - INFO - Post stored: at://did:plc:ugjhsg5u6p7nzwwcdfs3arux/app.bsky.feed.post/3ll45bcpvvw2q
+2025-03-24 01:56:33,631 - INFO - Post stored: at://did:plc:5jgfrnkdnnq34vjb6bary5qk/app.bsky.feed.post/3ll457wk57s2u
+2025-03-24 01:56:33,773 - INFO - Post stored: at://did:plc:v3jmcqse7evdxp4uwfo5gzyx/app.bsky.feed.post/3ll44xcx2bs24
+2025-03-24 01:56:33,907 - INFO - Post stored: at://did:plc:op6nud245kjzehuyi672guch/app.bsky.feed.post/3ll44soplbc22
+2025-03-24 01:56:34,035 - INFO - Post stored: at://did:plc:ufhrbtqli4k6uo7fmv3ib56w/app.bsky.feed.post/3ll44qlkvnp2a
+2025-03-24 01:56:34,213 - INFO - Post stored: at://did:plc:ufhrbtqli4k6uo7fmv3ib56w/app.bsky.feed.post/3ll44qks26426
+2025-03-24 01:56:34,432 - INFO - Post stored: at://did:plc:hmgbggxs7iy4vcn7hgyjyjsa/app.bsky.feed.post/3ll44nhhd372v
+2025-03-24 01:56:34,574 - INFO - Post stored: at://did:plc:hvapkqqhsc56fbbrun73qxyy/app.bsky.feed.post/3ll44ih6uhc2v
+2025-03-24 01:56:34,705 - INFO - Post stored: at://did:plc:ugjhsg5u6p7nzwwcdfs3arux/app.bsky.feed.post/3ll44gigbef2e
+2025-03-24 01:56:34,876 - INFO - Post stored: at://did:plc:xvq6zk2vjoqoivmk4dfqp6bz/app.bsky.feed.post/3ll44dxgrr72o
+2025-03-24 01:56:35,022 - INFO - Post stored: at://did:plc:hmgbggxs7iy4vcn7hgyjyjsa/app.bsky.feed.post/3ll44cy2afc2z
+2025-03-24 01:56:35,156 - INFO - Post stored: at://did:plc:hmgbggxs7iy4vcn7hgyjyjsa/app.bsky.feed.post/3ll44c4yqnk2t
+2025-03-24 01:56:35,280 - INFO - Post stored: at://did:plc:mulh2ni66tktzrdyd7sjdqut/app.bsky.feed.post/3ll44btquqc2i
+2025-03-24 01:56:35,406 - INFO - Post stored: at://did:plc:txht45rhtsuctnfxeiylsi64/app.bsky.feed.post/3ll44ax5sj22c
+2025-03-24 01:56:35,575 - INFO - Post stored: at://did:plc:6nbhm6zeudw442347s7q7n7o/app.bsky.feed.post/3ll44avuqzs2l
+2025-03-24 01:56:35,720 - INFO - Post stored: at://did:plc:hmgbggxs7iy4vcn7hgyjyjsa/app.bsky.feed.post/3ll447m7hjr2j
+2025-03-24 01:56:35,851 - INFO - Post stored: at://did:plc:c7klwpcokzpw6pflapnwltdy/app.bsky.feed.post/3ll446spab72u
+2025-03-24 01:56:35,978 - INFO - Post stored: at://did:plc:s7y7pyqcdfzlzbwuslfzsxbf/app.bsky.feed.post/3ll446llmuc2b
+2025-03-24 01:56:36,110 - INFO - Post stored: at://did:plc:7gubnfgmximvqa4eextnc3mr/app.bsky.feed.post/3ll445lw2x72j
+2025-03-24 01:56:36,252 - INFO - Post stored: at://did:plc:ls3w5fgsxyvcxbeykmhvlgsk/app.bsky.feed.post/3ll444og5ys2p
+2025-03-24 01:56:36,405 - INFO - Post stored: at://did:plc:pnns2rjp5heebihdcqmys7av/app.bsky.feed.post/3ll44466wrc2e
+2025-03-24 01:56:36,541 - INFO - Post stored: at://did:plc:w6pdaaj6x672kgpxtzzae62y/app.bsky.feed.post/3ll443klc7o24
+2025-03-24 01:56:36,672 - INFO - Post stored: at://did:plc:zmqxbjygsvtrgrbb4vapzge2/app.bsky.feed.post/3ll442juhr22y
+2025-03-24 01:56:36,810 - INFO - Post stored: at://did:plc:rq43o3fqzfrjs7atoiunkuv4/app.bsky.feed.post/3ll442g6pyg2d
+2025-03-24 01:56:36,947 - INFO - Post stored: at://did:plc:tpc42zt2y25vzh4a2djx5tvo/app.bsky.feed.post/3ll43ziv36v2f
+2025-03-24 01:59:17,549 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 01:59:17,734 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 01:59:17,737 - INFO - Successfully logged in to Bluesky
+2025-03-24 01:59:17,738 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 01:59:17,830 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 01:59:19,857 - INFO - Model loaded successfully
+2025-03-24 01:59:20,087 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
+2025-03-24 01:59:21,027 - INFO - User stored: volcanoviews.stefanbohacek.online.ap.brid.gy
+2025-03-24 01:59:21,076 - INFO - Post stored: at://did:plc:vfkow4vkkx2imuhorrvdb2g2/app.bsky.feed.post/3ll45kyfs5pn2
+2025-03-24 01:59:21,332 - INFO - User stored: thebookgoblin1404.bsky.social
+2025-03-24 01:59:21,378 - INFO - Post stored: at://did:plc:o65iyh5hmrplb3pzql4tve73/app.bsky.feed.post/3ll45dmzz2s2j
+2025-03-24 01:59:21,581 - INFO - User stored: miihei.bsky.social
+2025-03-24 01:59:21,633 - INFO - Post stored: at://did:plc:5jgfrnkdnnq34vjb6bary5qk/app.bsky.feed.post/3ll457wk57s2u
+2025-03-24 01:59:21,786 - INFO - User stored: drstidhum.bsky.social
+2025-03-24 01:59:21,830 - INFO - Post stored: at://did:plc:v3jmcqse7evdxp4uwfo5gzyx/app.bsky.feed.post/3ll44xcx2bs24
+2025-03-24 01:59:21,985 - INFO - User stored: milenials4guilotin.bsky.social
+2025-03-24 01:59:22,030 - INFO - Post stored: at://did:plc:op6nud245kjzehuyi672guch/app.bsky.feed.post/3ll44soplbc22
+2025-03-24 01:59:22,163 - INFO - User stored: thestarmy-poster.bsky.social
+2025-03-24 01:59:22,207 - INFO - Post stored: at://did:plc:ufhrbtqli4k6uo7fmv3ib56w/app.bsky.feed.post/3ll44qlkvnp2a
+2025-03-24 01:59:22,449 - INFO - User stored: taghrid.bsky.social
+2025-03-24 01:59:22,493 - INFO - Post stored: at://did:plc:hvapkqqhsc56fbbrun73qxyy/app.bsky.feed.post/3ll44ih6uhc2v
+2025-03-24 01:59:22,691 - INFO - User stored: worldeqlocator.bsky.social
+2025-03-24 01:59:22,736 - INFO - Post stored: at://did:plc:xvq6zk2vjoqoivmk4dfqp6bz/app.bsky.feed.post/3ll44dxgrr72o
+2025-03-24 01:59:22,976 - INFO - User stored: biihfranca.bsky.social
+2025-03-24 01:59:23,021 - INFO - Post stored: at://did:plc:mulh2ni66tktzrdyd7sjdqut/app.bsky.feed.post/3ll44btquqc2i
+2025-03-24 01:59:23,209 - INFO - User stored: chuckgoat.bsky.social
+2025-03-24 01:59:23,252 - INFO - Post stored: at://did:plc:6nbhm6zeudw442347s7q7n7o/app.bsky.feed.post/3ll44avuqzs2l
+2025-03-24 01:59:23,436 - INFO - User stored: crypto-news-zh.bsky.social
+2025-03-24 01:59:23,481 - INFO - Post stored: at://did:plc:c7klwpcokzpw6pflapnwltdy/app.bsky.feed.post/3ll446spab72u
+2025-03-24 01:59:23,614 - INFO - User stored: crypto-news-pt.bsky.social
+2025-03-24 01:59:23,656 - INFO - Post stored: at://did:plc:s7y7pyqcdfzlzbwuslfzsxbf/app.bsky.feed.post/3ll446llmuc2b
+2025-03-24 01:59:23,801 - INFO - User stored: physicssocph-bot.bsky.social
+2025-03-24 01:59:23,846 - INFO - Post stored: at://did:plc:7gubnfgmximvqa4eextnc3mr/app.bsky.feed.post/3ll445lw2x72j
+2025-03-24 01:59:23,981 - INFO - User stored: tradwhitebriefs.bsky.social
+2025-03-24 01:59:24,026 - INFO - Post stored: at://did:plc:ls3w5fgsxyvcxbeykmhvlgsk/app.bsky.feed.post/3ll444og5ys2p
+2025-03-24 01:59:24,162 - INFO - User stored: misumisurecords.bsky.social
+2025-03-24 01:59:24,206 - INFO - Post stored: at://did:plc:pnns2rjp5heebihdcqmys7av/app.bsky.feed.post/3ll44466wrc2e
+2025-03-24 01:59:24,385 - INFO - User stored: spiraledu.bsky.social
+2025-03-24 01:59:24,427 - INFO - Post stored: at://did:plc:zmqxbjygsvtrgrbb4vapzge2/app.bsky.feed.post/3ll442juhr22y
+2025-03-24 01:59:24,572 - INFO - User stored: physicsgeoph-bot.bsky.social
+2025-03-24 01:59:24,614 - INFO - Post stored: at://did:plc:rq43o3fqzfrjs7atoiunkuv4/app.bsky.feed.post/3ll442g6pyg2d
+2025-03-24 01:59:24,755 - INFO - User stored: newshoundai.bsky.social
+2025-03-24 01:59:24,799 - INFO - Post stored: at://did:plc:tpc42zt2y25vzh4a2djx5tvo/app.bsky.feed.post/3ll43ziv36v2f
+2025-03-24 02:08:39,623 - ERROR - Login failed: Either session_string or login and password should be provided.
+2025-03-24 02:08:39,624 - ERROR - Failed to initialize DynamoDB: AWS credentials missing from environment variables
+2025-03-24 02:16:22,785 - ERROR - Login failed: Either session_string or login and password should be provided.
+2025-03-24 02:16:22,785 - ERROR - Failed to initialize DynamoDB: AWS credentials missing from environment variables
+2025-03-24 02:17:21,825 - ERROR - Login failed: Either session_string or login and password should be provided.
+2025-03-24 02:17:21,825 - ERROR - Failed to initialize DynamoDB: AWS credentials missing from environment variables
+2025-03-24 02:18:06,211 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 02:18:06,405 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 02:18:06,407 - INFO - Successfully logged in to Bluesky
+2025-03-24 02:18:06,407 - ERROR - Failed to initialize DynamoDB: AWS credentials missing from environment variables
+2025-03-24 02:24:57,100 - INFO - HTTP Request: POST https://bsky.social/xrpc/com.atproto.server.createSession "HTTP/1.1 200 OK"
+2025-03-24 02:24:57,289 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.actor.getProfile?actor=capt-vikram.bsky.social "HTTP/1.1 200 OK"
+2025-03-24 02:24:57,291 - INFO - Successfully logged in to Bluesky
+2025-03-24 02:24:57,291 - INFO - Initializing DynamoDB in region us-east-1
+2025-03-24 02:24:57,381 - INFO - Loading model from /Users/udayvasepalli/Downloads/checkpoint-31710 2
+2025-03-24 02:24:59,544 - INFO - Model loaded successfully
+2025-03-24 02:24:59,782 - INFO - HTTP Request: GET https://fuzzyfoot.us-west.host.bsky.network/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2Fdid%3Aplc%3Aqiknc4t5rq7yngvz7g4aezq7%2Fapp.bsky.feed.generator%2Faaaelfwqlfugs&limit=30 "HTTP/1.1 200 OK"
