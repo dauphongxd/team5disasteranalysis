@@ -5,7 +5,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta  # Added timedelta import
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 import logging
@@ -21,7 +21,7 @@ app = Flask(__name__)
 CORS(app)  # Enable cross-origin requests
 
 # Load environment variables
-load_dotenv('disasterweb.env')
+load_dotenv('.env')
 
 # DynamoDB table names
 POSTS_TABLE = 'DisasterFeed_Posts'
@@ -255,6 +255,256 @@ def get_disaster_types():
 
     except Exception as e:
         logger.error(f"Error in get_disaster_types: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/chart/disaster-distribution', methods=['GET'])
+def get_disaster_distribution():
+    """Get count and percentage of posts by disaster type"""
+    try:
+        dynamodb = get_dynamodb()
+        posts_table = dynamodb.Table(POSTS_TABLE)
+
+        # Get all disaster posts using IsDisasterIndex
+        response = posts_table.query(
+            IndexName='IsDisasterIndex',
+            KeyConditionExpression=Key('is_disaster_str').eq('true')
+        )
+
+        all_items = response['Items']
+        while 'LastEvaluatedKey' in response:
+            response = posts_table.query(
+                IndexName='IsDisasterIndex',
+                KeyConditionExpression=Key('is_disaster_str').eq('true'),
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            all_items.extend(response['Items'])
+
+        # Count by disaster type
+        type_counts = {}
+        total_count = 0
+
+        for item in all_items:
+            disaster_type = item.get('disaster_type', 'unknown')
+            if disaster_type not in type_counts:
+                type_counts[disaster_type] = 0
+            type_counts[disaster_type] += 1
+            total_count += 1
+
+        # Calculate percentages
+        result = {
+            "data": [],
+            "total_count": total_count
+        }
+
+        for disaster_type, count in type_counts.items():
+            percentage = (count / total_count * 100) if total_count > 0 else 0
+            result["data"].append({
+                "type": disaster_type,
+                "count": count,
+                "percentage": round(float(percentage), 1)
+            })
+
+        # Sort by count descending
+        result["data"].sort(key=lambda x: x["count"], reverse=True)
+
+        return app.response_class(
+            response=json.dumps(result, cls=DecimalEncoder),
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        logger.error(f"Error in get_disaster_distribution: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/chart/disaster-timeline', methods=['GET'])
+def get_disaster_timeline():
+    """Get time-series data for disaster posts"""
+    try:
+        # Get query parameters
+        interval = request.args.get('interval', 'daily')  # daily, weekly, monthly
+        days = int(request.args.get('days', '30'))  # last 30 days by default
+        disaster_type = request.args.get('type', None)  # optional filter
+
+        dynamodb = get_dynamodb()
+        posts_table = dynamodb.Table(POSTS_TABLE)
+
+        # Calculate start date - FIXED datetime usage
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        start_date_str = start_date.isoformat()
+
+        # Decide which index and query to use
+        if disaster_type and disaster_type != 'all':
+            # Use DisasterTypeIndex
+            response = posts_table.query(
+                IndexName='DisasterTypeIndex',
+                KeyConditionExpression=Key('disaster_type').eq(disaster_type) &
+                                       Key('indexed_at').gte(start_date_str)
+            )
+        else:
+            # Use IsDisasterIndex
+            response = posts_table.query(
+                IndexName='IsDisasterIndex',
+                KeyConditionExpression=Key('is_disaster_str').eq('true') &
+                                       Key('indexed_at').gte(start_date_str)
+            )
+
+        all_items = response['Items']
+        while 'LastEvaluatedKey' in response:
+            if disaster_type and disaster_type != 'all':
+                response = posts_table.query(
+                    IndexName='DisasterTypeIndex',
+                    KeyConditionExpression=Key('disaster_type').eq(disaster_type) &
+                                           Key('indexed_at').gte(start_date_str),
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+            else:
+                response = posts_table.query(
+                    IndexName='IsDisasterIndex',
+                    KeyConditionExpression=Key('is_disaster_str').eq('true') &
+                                           Key('indexed_at').gte(start_date_str),
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+            all_items.extend(response['Items'])
+
+        # Process data by interval and disaster type
+        timeline_data = {}
+        date_labels = []
+
+        # Group data by date and disaster type
+        for item in all_items:
+            date_str = item.get('created_at', '')
+            if not date_str:
+                continue
+
+            try:
+                date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+
+                # Format date based on interval
+                if interval == 'daily':
+                    interval_key = date.strftime('%Y-%m-%d')
+                elif interval == 'weekly':
+                    # Get start of week (Monday)
+                    start_of_week = date - timedelta(days=date.weekday())
+                    interval_key = start_of_week.strftime('%Y-%m-%d')
+                elif interval == 'monthly':
+                    interval_key = date.strftime('%Y-%m')
+
+                # Add to date labels if new
+                if interval_key not in date_labels:
+                    date_labels.append(interval_key)
+
+                # Count by disaster type
+                disaster_type = item.get('disaster_type', 'unknown')
+
+                if disaster_type not in timeline_data:
+                    timeline_data[disaster_type] = {}
+
+                if interval_key not in timeline_data[disaster_type]:
+                    timeline_data[disaster_type][interval_key] = 0
+
+                timeline_data[disaster_type][interval_key] += 1
+
+            except (ValueError, TypeError):
+                continue
+
+        # Sort date labels
+        date_labels.sort()
+
+        # Format result
+        datasets = []
+        for disaster_type, dates in timeline_data.items():
+            data_points = []
+            for label in date_labels:
+                data_points.append(dates.get(label, 0))
+
+            datasets.append({
+                "label": disaster_type,
+                "data": data_points
+            })
+
+        result = {
+            "interval": interval,
+            "labels": date_labels,
+            "datasets": datasets
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in get_disaster_timeline: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/chart/post-volume-metrics', methods=['GET'])
+def get_post_volume_metrics():
+    """Get overall post volume metrics"""
+    try:
+        dynamodb = get_dynamodb()
+        posts_table = dynamodb.Table(POSTS_TABLE)
+
+        # Get all posts
+        # Note: This could be inefficient for large tables
+        # Consider implementing a counter table for production
+        scan_response = posts_table.scan(
+            Select='COUNT'
+        )
+        total_processed = scan_response.get('Count', 0)
+
+        # Get disaster posts count
+        disaster_response = posts_table.query(
+            IndexName='IsDisasterIndex',
+            KeyConditionExpression=Key('is_disaster_str').eq('true'),
+            Select='COUNT'
+        )
+        disaster_posts = disaster_response.get('Count', 0)
+
+        # Calculate percentage
+        disaster_percentage = (disaster_posts / total_processed * 100) if total_processed > 0 else 0
+
+        # Get last 24 hours metrics - FIXED datetime usage
+        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
+
+        # This is simplified - for a complete implementation, you'd need to handle pagination
+        recent_response = posts_table.scan(
+            FilterExpression=Attr('indexed_at').gte(yesterday),
+            Select='COUNT'
+        )
+        last_24h_total = recent_response.get('Count', 0)
+
+        # Recent disaster posts
+        recent_disaster_response = posts_table.query(
+            IndexName='IsDisasterIndex',
+            KeyConditionExpression=Key('is_disaster_str').eq('true') & Key('indexed_at').gte(yesterday),
+            Select='COUNT'
+        )
+        last_24h_disaster = recent_disaster_response.get('Count', 0)
+
+        # Calculate recent percentage
+        last_24h_percentage = (last_24h_disaster / last_24h_total * 100) if last_24h_total > 0 else 0
+
+        result = {
+            "total_processed": total_processed,
+            "disaster_posts": disaster_posts,
+            "disaster_percentage": round(float(disaster_percentage), 1),
+            "last_24h": {
+                "total_processed": last_24h_total,
+                "disaster_posts": last_24h_disaster,
+                "disaster_percentage": round(float(last_24h_percentage), 1)
+            }
+        }
+
+        return app.response_class(
+            response=json.dumps(result, cls=DecimalEncoder),
+            status=200,
+            mimetype='application/json'
+        )
+
+    except Exception as e:
+        logger.error(f"Error in get_post_volume_metrics: {e}")
         return jsonify({"error": str(e)}), 500
 
 
