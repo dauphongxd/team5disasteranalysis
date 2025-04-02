@@ -113,7 +113,10 @@ def get_posts():
                 'disaster_type': item.get('disaster_type'),
                 'confidence_score': item.get('confidence_score'),
                 'username': item.get('handle'),  # Using handle as username
+                'handle': item.get('handle'),  # Also include handle explicitly
                 'user_id': item.get('user_id'),
+                'display_name': item.get('display_name'),  # Add display_name
+                'avatar_url': item.get('avatar_url'),  # Add avatar_url
                 'location_name': item.get('location_name', ''),
                 'media': item.get('media_urls', [])
             }
