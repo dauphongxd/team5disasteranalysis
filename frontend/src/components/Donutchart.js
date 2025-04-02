@@ -226,11 +226,6 @@ const DonutChart = ({ selectedDisaster }) => {
                   ))}
                 </ul>
             )}
-
-            <div className="total-disasters">
-              <span className="total-label">Total Disasters:</span>
-              <span className="total-value">{chartData.totalCount}</span>
-            </div>
           </div>
         </div>
       </div>
