@@ -10,6 +10,7 @@ import Timechart from "./components/Timechart";
 import Donutchart from "./components/Donutchart";
 import api from "./services/api"; // Import your existing API service
 import "./styles.css";
+import HelpSection from "./components/HelpSection";
 
 function App() {
     const [selectedDisaster, setSelectedDisaster] = useState("all");
@@ -84,8 +85,12 @@ function App() {
                     <Timechart selectedDisaster={selectedDisaster} />
                 </div>
 
+                <div>
+                    <HelpSection selectedDisaster={selectedDisaster}/>
+                </div>
+
                 {/* Pass selectedDisaster to Donutchart */}
-                <Donutchart selectedDisaster={selectedDisaster} />
+                <Donutchart selectedDisaster={selectedDisaster}/>
             </div>
 
             {/* Replace HelpSection with Footer */}

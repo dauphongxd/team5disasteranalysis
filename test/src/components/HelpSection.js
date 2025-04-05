@@ -1,6 +1,8 @@
 import React from "react";
 
-function HelpSection({ disasterType }) {
+function HelpSection({ selectedDisaster }) {
+  // Note: The prop name should be selectedDisaster to match what App.js is passing
+
   // Define the resource links with titles and links
   const resources = {
     fire: {
@@ -68,31 +70,31 @@ function HelpSection({ disasterType }) {
     },
   };
 
-  // Get the resources for the selected disaster type
-  const selectedResources = resources[disasterType] || { title: "No Resources", links: [] };
+  // Always show general disaster resources
+  const generalResources = resources.all;
 
   return (
-    <div className="help-section">
-      <h2>Emergency Resources & Help</h2>
-      <div className="help-grid">
-        <div className="help-category">
-          <h3>{selectedResources.title}</h3>
-          {selectedResources.links.length > 0 ? (
-            <ul>
-              {selectedResources.links.map((link, index) => (
-                <li key={index}>
-                  <a href={link.url} target="_blank" rel="noopener noreferrer">
-                    {link.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No resources available for this category.</p>
-          )}
+      <div className="help-section">
+        <h2>Emergency Resources & Help</h2>
+        <div className="help-grid">
+          <div className="help-category">
+            <h3>{generalResources.title}</h3>
+            {generalResources.links.length > 0 ? (
+                <ul>
+                  {generalResources.links.map((link, index) => (
+                      <li key={index}>
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          {link.text}
+                        </a>
+                      </li>
+                  ))}
+                </ul>
+            ) : (
+                <p>No resources available for this category.</p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
   );
 }
 

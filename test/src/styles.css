@@ -1445,3 +1445,87 @@ html {
 .animations-disabled .app-footer h3 {
     animation: none !important;
 }
+
+.tweet-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.connection-status {
+    font-size: 0.9rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.connection-status.connected {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    border: 1px solid #2ecc71;
+}
+
+.connection-status.disconnected {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+/* Animation for "Live" status */
+@keyframes live-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+.connection-status.connected::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #2ecc71;
+    margin-right: 5px;
+    animation: live-pulse 2s infinite;
+}
+
+.refresh-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.refresh-button:hover {
+    background-color: #2980b9;
+}
+
+@keyframes newTweetAnimation {
+    0% {
+        background-color: rgba(29, 161, 242, 0.3);
+        transform: translateX(-5px);
+    }
+    50% {
+        background-color: rgba(29, 161, 242, 0.2);
+        transform: translateX(0);
+    }
+    100% {
+        background-color: #ffffff;
+        transform: translateX(0);
+    }
+}
+
+.tweet-container.new-tweet {
+    animation: newTweetAnimation 2s ease-out forwards;
+}
+
+/* Add a subtle border to new tweets */
+.tweet-container.new-tweet {
+    border-left: 4px solid #1da1f2;
+}

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta  # Added timedelta import
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 import logging
+from flask_socketio import SocketIO, emit
 
 # Set up logging
 logging.basicConfig(
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable cross-origin requests
 
+# Initialize SocketIO with CORS support
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 # Load environment variables
 load_dotenv('.env')
 
@@ -28,6 +32,7 @@ POSTS_TABLE = 'DisasterFeed_Posts'
 USERS_TABLE = 'DisasterFeed_Users'
 WEATHER_TABLE = 'DisasterFeed_WeatherData'
 
+connected_clients = {}
 
 # Initialize DynamoDB client
 def get_dynamodb():
@@ -57,6 +62,73 @@ class DecimalEncoder(json.JSONEncoder):
             return float(obj)
         return super(DecimalEncoder, self).default(obj)
 
+
+# SocketIO event handlers
+@socketio.on('connect')
+def handle_connect():
+    logger.info(f"Client connected: {request.sid}")
+    connected_clients[request.sid] = {'disaster_type': 'all'}
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logger.info(f"Client disconnected: {request.sid}")
+    if request.sid in connected_clients:
+        del connected_clients[request.sid]
+
+
+@socketio.on('subscribe')
+def handle_subscribe(data):
+    disaster_type = data.get('disasterType', 'all')
+    logger.info(f"Client {request.sid} subscribed to disaster type: {disaster_type}")
+    connected_clients[request.sid] = {'disaster_type': disaster_type}
+
+
+# Endpoint to broadcast a new post (used by test_realtime.py)
+@app.route('/api/notify-new-post', methods=['POST'])
+def notify_new_post():
+    try:
+        post_data = request.json
+
+        if not post_data or 'post' not in post_data:
+            return jsonify({"error": "Invalid post data"}), 400
+
+        post = post_data['post']
+
+        # Broadcast to relevant clients
+        broadcast_post(post)
+
+        return jsonify({"status": "success", "message": "Post broadcasted to clients"}), 200
+    except Exception as e:
+        logger.error(f"Error in notify_new_post: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Function to broadcast a post to connected clients
+def broadcast_post(post):
+    post_disaster_type = post.get('disaster_type', 'unknown')
+
+    logger.info(f"Broadcasting post of type {post_disaster_type} to {len(connected_clients)} clients")
+
+    # Format post for client (if needed)
+    formatted_post = {
+        "post_id": post.get('post_id'),
+        "handle": post.get('handle'),
+        "display_name": post.get('display_name', ''),
+        "text": post.get('original_text'),
+        "timestamp": post.get('created_at'),
+        "avatar_url": post.get('avatar_url'),
+        "disaster_type": post_disaster_type,
+        "confidence_score": post.get('confidence_score', 0),
+    }
+
+    # Send to all relevant clients
+    for sid, subscription in connected_clients.items():
+        client_disaster_type = subscription.get('disaster_type')
+
+        # Check if client is subscribed to this post's disaster type
+        if client_disaster_type == 'all' or client_disaster_type == post_disaster_type:
+            socketio.emit('new_post', {"type": "new_post", "post": formatted_post}, room=sid)
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
@@ -512,4 +584,4 @@ def get_post_volume_metrics():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    socketio.run(app, debug=True, port=5000)

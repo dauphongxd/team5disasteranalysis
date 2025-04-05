@@ -6,7 +6,7 @@ import api from "../services/api";
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// Disaster categories mapping for filtering
+// Disaster categories mapping for aggregating data
 const disasterCategoriesMapping = {
   fire: ["wild fire", "bush fire", "forest fire", "wildfire", "bushfire", "forestfire"],
   storm: ["storm", "blizzard", "cyclone", "dust storm", "hurricane", "tornado", "typhoon"],
@@ -18,12 +18,23 @@ const disasterCategoriesMapping = {
   other: ["haze", "meteor", "unknown"]
 };
 
-const DonutChart = ({ selectedDisaster }) => {
+// Super category display names (for better formatting)
+const superCategoryNames = {
+  fire: "Fire",
+  storm: "Storm",
+  earthquake: "Earthquake",
+  tsunami: "Tsunami",
+  volcano: "Volcano",
+  flood: "Flood",
+  landslide: "Landslide",
+  other: "Other"
+};
+
+const DonutChart = () => {
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const chartRef = useRef(null); // Reference for the chart container
+  const chartRef = useRef(null);
 
   // Use useCallback to memoize the fetchDisasterDistribution function
   const fetchDisasterDistribution = useCallback(async () => {
@@ -38,23 +49,50 @@ const DonutChart = ({ selectedDisaster }) => {
         throw new Error('Invalid data format received from API');
       }
 
-      // Filter data based on selected disaster if needed
-      let filteredData = apiData.data;
+      // Aggregate data by super category
+      const superCategoryCounts = {};
+      let totalCount = 0;
 
-      if (selectedDisaster && selectedDisaster !== 'all') {
-        // If category selection is active, filter to just relevant subcategories
-        filteredData = apiData.data.filter(item => {
-          const type = item.type.toLowerCase();
-          return isMatchingCategory(type, selectedDisaster);
-        });
-      }
+      // Initialize all super categories with 0 counts
+      Object.keys(disasterCategoriesMapping).forEach(category => {
+        superCategoryCounts[category] = 0;
+      });
 
-      // Sort by count for consistent ordering
-      filteredData.sort((a, b) => b.count - a.count);
+      // Process each data item
+      apiData.data.forEach(item => {
+        const type = item.type.toLowerCase();
+        const count = item.count || 0;
+        totalCount += count;
+
+        // Find which super category this item belongs to
+        let foundSuperCategory = false;
+        for (const [superCategory, subcategories] of Object.entries(disasterCategoriesMapping)) {
+          if (superCategory === type || subcategories.includes(type)) {
+            superCategoryCounts[superCategory] += count;
+            foundSuperCategory = true;
+            break;
+          }
+        }
+
+        // If no match, add to "other" category
+        if (!foundSuperCategory) {
+          superCategoryCounts.other += count;
+        }
+      });
+
+      // Create the array of super categories with counts > 0
+      const superCategoryData = Object.entries(superCategoryCounts)
+          .filter(([_, count]) => count > 0)
+          .map(([category, count]) => ({
+            category,
+            displayName: superCategoryNames[category] || capitalizeFirstLetter(category),
+            count
+          }))
+          .sort((a, b) => b.count - a.count); // Sort by count (highest first)
 
       // Prepare chart data format
-      const labels = filteredData.map(item => capitalizeFirstLetter(item.type));
-      const dataValues = filteredData.map(item => item.count);
+      const labels = superCategoryData.map(item => item.displayName);
+      const dataValues = superCategoryData.map(item => item.count);
 
       // Define chart colors - match your theme
       const backgroundColors = [
@@ -84,8 +122,8 @@ const DonutChart = ({ selectedDisaster }) => {
 
       setChartData({
         chartJsData: formattedData,
-        originalData: filteredData,
-        totalCount: apiData.total_count || filteredData.reduce((sum, item) => sum + item.count, 0)
+        superCategoryData: superCategoryData,
+        totalCount: totalCount
       });
 
       setLoading(false);
@@ -94,49 +132,17 @@ const DonutChart = ({ selectedDisaster }) => {
       setError(err.message);
       setLoading(false);
     }
-  }, [selectedDisaster]);
+  }, []);
 
-  // Fetch data when component mounts or when dependencies change
+  // Fetch data when component mounts
   useEffect(() => {
     fetchDisasterDistribution();
   }, [fetchDisasterDistribution]);
-
-  // Helper function to check if a disaster type matches a category
-  const isMatchingCategory = (type, category) => {
-    // If the type matches the category directly
-    if (type === category) return true;
-
-    // If the type is one of the subcategories of the category
-    return disasterCategoriesMapping[category] && disasterCategoriesMapping[category].includes(type);
-  };
 
   const capitalizeFirstLetter = (string) => {
     if (!string) return "";
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
-
-  const handleChartClick = (event, elements) => {
-    if (elements && elements.length > 0) {
-      const clickedCategory = chartData.chartJsData.labels[elements[0].index].toLowerCase();
-      setSelectedCategory(clickedCategory);
-    } else {
-      setSelectedCategory(null);
-    }
-  };
-
-  // Handle clicks outside the chart to reset selection
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (chartRef.current && !chartRef.current.contains(event.target)) {
-        setSelectedCategory(null); // Reset to default overview
-      }
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
 
   // Chart options
   const options = {
@@ -159,8 +165,8 @@ const DonutChart = ({ selectedDisaster }) => {
         borderColor: 'rgba(255, 255, 255, 0.3)',
         borderWidth: 1,
       }
-    },
-    onClick: handleChartClick,
+    }
+    // Keep hover effects but no click handler
   };
 
   if (loading && !chartData) {
@@ -197,35 +203,19 @@ const DonutChart = ({ selectedDisaster }) => {
             <Doughnut data={chartData.chartJsData} options={options} />
           </div>
 
-          {/* Overview Section */}
+          {/* Overview Section - Always shows super categories */}
           <div className="overview-section">
             <h3>Disaster Categories Overview</h3>
-            {selectedCategory ? (
-                <ul className="subcategories">
-                  <h4>{capitalizeFirstLetter(selectedCategory)}</h4>
-                  {chartData.originalData
-                      .filter(item => item.type.toLowerCase() === selectedCategory.toLowerCase())
-                      .map(item => (
-                          <li key={item.type}>
-                    <span className="subcategory">
-                      {capitalizeFirstLetter(item.type)}
-                    </span>
-                            <span className="occurrence">{item.count}</span>
-                          </li>
-                      ))}
-                </ul>
-            ) : (
-                <ul>
-                  {chartData.originalData.map(item => (
-                      <li key={item.type}>
-                  <span className="category">
-                    {capitalizeFirstLetter(item.type)}
-                  </span>
-                        <span className="occurrence">{item.count}</span>
-                      </li>
-                  ))}
-                </ul>
-            )}
+            <ul>
+              {chartData.superCategoryData.map(item => (
+                  <li key={item.category}>
+                <span className="category">
+                  {item.displayName}
+                </span>
+                    <span className="occurrence">{item.count}</span>
+                  </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import time
 import datetime
 import json
 import os
+import requests  # Added for API notifications
 from atproto import Client, models
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, RobertaConfig
 import torch.nn.functional as F
@@ -12,6 +13,7 @@ import logging
 import uuid
 from decimal import Decimal
 from botocore.exceptions import ClientError
+import threading
 
 # Set up logging
 logging.basicConfig(
@@ -23,6 +25,43 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Flask API endpoint for WebSocket notifications
+# This should match your Flask API's host and port
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000')
+NOTIFICATION_ENDPOINT = f"{API_BASE_URL}/api/notify-new-post"
+
+# Function to notify the Flask API about a new post
+def notify_api_about_new_post(post):
+    """Notify the Flask API about a new post"""
+    try:
+        # Create a JSON-serializable version of the post
+        # Convert Decimal to float for JSON serialization
+        serializable_post = {}
+        for key, value in post.items():
+            if isinstance(value, Decimal):
+                serializable_post[key] = float(value)
+            else:
+                serializable_post[key] = value
+
+        # Send notification to Flask API
+        payload = {
+            'post': serializable_post
+        }
+
+        response = requests.post(
+            NOTIFICATION_ENDPOINT,
+            json=payload,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if response.status_code == 200:
+            logger.info(f"Successfully notified API about new post: {post['post_id']}")
+        else:
+            logger.warning(f"Failed to notify API: {response.status_code} - {response.text}")
+
+    except Exception as e:
+        logger.error(f"Error notifying API: {e}")
 
 
 # Text cleaning
@@ -224,6 +263,22 @@ def delete_table_if_exists(dynamodb, table_name):
         logger.error(f"Error deleting table {table_name}: {e}")
         return False
 
+
+def enable_streams_on_existing_table(dynamodb_client, table_name):
+    """Enable DynamoDB Streams on an existing table"""
+    try:
+        response = dynamodb_client.update_table(
+            TableName=table_name,
+            StreamSpecification={
+                'StreamEnabled': True,
+                'StreamViewType': 'NEW_AND_OLD_IMAGES'
+            }
+        )
+        logger.info(f"Enabled streams on {table_name}")
+        return response['TableDescription']['LatestStreamArn']
+    except Exception as e:
+        logger.error(f"Error enabling streams on {table_name}: {e}")
+        return None
 
 # Function to create all required tables
 def create_tables(dynamodb, force_recreate=False):
@@ -439,6 +494,9 @@ def put_post(dynamodb, post_data):
         # Put the item in the table
         posts_table.put_item(Item=item)
         logger.info(f"Post stored: {post_data['post_id']}")
+
+        # Notify API about the new post
+        notify_api_about_new_post(item)
 
         return post_data['post_id']
 
@@ -920,7 +978,7 @@ def get_timeline_posts(client, tokenizer, model, id2label, dynamodb, max_posts=5
                             'confidence_score': confidence_score,
                             'is_disaster': is_disaster_db
                         }
-                        put_post(dynamodb, post_data)
+                        put_post(dynamodb, post_data)  # This now calls notify_api_about_new_post internally
 
                         # Add to processed posts
                         processed_posts.append({
@@ -1017,6 +1075,25 @@ def main(force_recreate_tables=False):
             logger.error("Failed to create tables. Exiting.")
             return
 
+        try:
+            logger.info("Enabling DynamoDB Streams on Posts table...")
+            dynamodb_client = boto3.client('dynamodb',
+                                           region_name=os.getenv('AWS_REGION', 'us-east-1'),
+                                           aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                                           aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
+
+            stream_arn = enable_streams_on_existing_table(dynamodb_client, POSTS_TABLE)
+            if stream_arn:
+                logger.info(f"Stream ARN: {stream_arn}")
+                # Save the Stream ARN to a file for later use
+                with open('stream_arn.txt', 'w') as f:
+                    f.write(stream_arn)
+                logger.info("Stream ARN saved to stream_arn.txt")
+            else:
+                logger.error("Failed to enable streams on Posts table")
+        except Exception as e:
+            logger.error(f"Error setting up DynamoDB Streams: {e}")
+
         # List tables again to confirm creation
         logger.info("Tables after initialization:")
         list_tables(dynamodb)
@@ -1026,9 +1103,7 @@ def main(force_recreate_tables=False):
         client = Client()
         client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
 
-        # Start a simple session monitoring thread (optional but helpful)
-        import threading
-
+        # Start a simple session monitoring thread
         def keep_session_alive():
             """Background thread to keep the Bluesky session alive"""
             while True:
