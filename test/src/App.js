@@ -55,14 +55,6 @@ function App() {
                     <div className="earth"></div>
                 </div>
                 <Header />
-                <div className="app-controls">
-                    <button
-                        className={`control-button ${showDataViewer ? 'active' : ''}`}
-                        onClick={toggleDataViewer}
-                    >
-                        {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
-                    </button>
-                </div>
 
                 {/* Pass selectedDisaster and setSelectedDisaster to Filters */}
                 <Filters
@@ -71,10 +63,24 @@ function App() {
                     availableTypes={disasterTypes}
                 />
 
-                {showDataViewer && <NWSDataViewer />}
-
                 <div className="main-content">
-                    <MapSection />
+                    <div className="map-and-controls">
+                        <MapSection />
+                        
+                        <div className="nws-toggle-container">
+                            <button
+                                className={`nws-toggle-button ${showDataViewer ? 'active' : ''}`}
+                                onClick={toggleDataViewer}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                    <path d="M19 9h-14l7 7 7-7z"></path>
+                                </svg>
+                                {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
+                            </button>
+                        </div>
+                        
+                        {showDataViewer && <NWSDataViewer />}
+                    </div>
 
                     {/* Pass selectedDisaster to TweetFeed */}
                     <TweetFeed selectedDisaster={selectedDisaster} />
