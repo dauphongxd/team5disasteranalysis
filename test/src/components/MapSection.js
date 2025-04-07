@@ -10,13 +10,16 @@ function MapSection({ performanceMode }) {
   const [activeDataLayers, setActiveDataLayers] = useState({
     nwsAlerts: true,
     wildfires: true,
-    hurricanes: true
+    hurricanes: true,
+    flaggedAlerts: true
   });
   const [alertStats, setAlertStats] = useState({
     byType: {},
     bySeverity: {},
-    mappedCount: 0
+    mappedCount: 0,
+    flaggedCount: 0
   });
+  const [isLegendExpanded, setIsLegendExpanded] = useState(false);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerGroupsRef = useRef({});
@@ -245,6 +248,28 @@ function MapSection({ performanceMode }) {
           script.onerror = reject;
           document.head.appendChild(script);
         });
+        
+        // Load Leaflet MarkerCluster plugin after Leaflet loads
+        await new Promise((resolve, reject) => {
+          // MarkerCluster CSS
+          const clusterCssLink = document.createElement('link');
+          clusterCssLink.rel = 'stylesheet';
+          clusterCssLink.href = 'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css';
+          document.head.appendChild(clusterCssLink);
+          
+          // MarkerCluster Default CSS
+          const clusterDefaultCssLink = document.createElement('link');
+          clusterDefaultCssLink.rel = 'stylesheet';
+          clusterDefaultCssLink.href = 'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css';
+          document.head.appendChild(clusterDefaultCssLink);
+          
+          // MarkerCluster JS
+          const clusterScript = document.createElement('script');
+          clusterScript.src = 'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js';
+          clusterScript.onload = resolve;
+          clusterScript.onerror = reject;
+          document.head.appendChild(clusterScript);
+        });
       }
     } catch (err) {
       console.error("Error loading Leaflet:", err);
@@ -285,29 +310,327 @@ function MapSection({ performanceMode }) {
       }
 
       // Initialize map centered on US
-      const map = window.L.map(mapRef.current).setView([39.8, -98.5], 4);
+      const map = window.L.map(mapRef.current, {
+        center: [39.8, -98.5],
+        zoom: 4,
+        zoomControl: false, // We'll add a custom position for zoom control
+        minZoom: 3, // Limit zoom out to avoid distortion
+        maxBoundsViscosity: 1.0 // Keep map within bounds
+      });
       mapInstanceRef.current = map;
+
+      // Set map bounds to focus on the US with some extra space
+      const southWest = window.L.latLng(18, -140);
+      const northEast = window.L.latLng(62, -50);
+      const bounds = window.L.latLngBounds(southWest, northEast);
+      map.setMaxBounds(bounds);
+
+      // Add zoom control to top-right
+      window.L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
+
+      // Add scale control to bottom-left
+      window.L.control.scale({
+        imperial: true,
+        metric: true,
+        position: 'bottomleft'
+      }).addTo(map);
 
       // Add OpenStreetMap tile layer
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | <a href="https://www.weather.gov" target="_blank">NWS Data</a>',
+        maxZoom: 19
       }).addTo(map);
 
-      // Create layer groups for different data types
+      // Create layer groups
       const nwsAlertsLayer = window.L.layerGroup();
       const wildfiresLayer = window.L.layerGroup();
       const hurricanesLayer = window.L.layerGroup();
       
+      // Use marker clustering for flag markers to better organize them
+      const flaggedAlertsLayer = window.L.markerClusterGroup({
+        maxClusterRadius: 30,
+        iconCreateFunction: function(cluster) {
+          const count = cluster.getChildCount();
+          let size = 'small';
+          if (count > 50) {
+            size = 'large';
+          } else if (count > 20) {
+            size = 'medium';
+          }
+          
+          return window.L.divIcon({
+            html: `<div class="cluster-icon cluster-${size}">${count}</div>`,
+            className: 'alert-cluster-icon',
+            iconSize: window.L.point(40, 40)
+          });
+        },
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: true,
+        zoomToBoundsOnClick: true,
+        animate: true
+      });
+      
+      // Separate cluster group for regular alerts
+      const regularAlertsCluster = window.L.markerClusterGroup({
+        maxClusterRadius: 60,
+        disableClusteringAtZoom: 7,
+        spiderfyOnMaxZoom: true
+      });
+      
+      // Only add active layers to the map
+      if (activeDataLayers.nwsAlerts) nwsAlertsLayer.addTo(mapInstanceRef.current);
+      if (activeDataLayers.wildfires) wildfiresLayer.addTo(mapInstanceRef.current);
+      if (activeDataLayers.hurricanes) hurricanesLayer.addTo(mapInstanceRef.current);
+      
       layerGroupsRef.current = {
         nwsAlerts: nwsAlertsLayer,
         wildfires: wildfiresLayer,
-        hurricanes: hurricanesLayer
+        hurricanes: hurricanesLayer,
+        flaggedAlerts: flaggedAlertsLayer,
+        regularAlertsCluster: regularAlertsCluster
+      };
+
+      // Helper function to check if alert is urgent (expiring soon)
+      const isUrgent = (alert) => {
+        const now = new Date();
+        const expiryDate = new Date(alert.properties.expires);
+        const hoursRemaining = (expiryDate - now) / (1000 * 60 * 60);
+        return hoursRemaining < 3; // Less than 3 hours until expiry
+      };
+      
+      // Helper function to create a flag icon for an alert
+      const simpleFlagIcon = (alert) => {
+        const event = alert.properties.event.toLowerCase();
+        const severity = alert.properties.severity;
+        
+        // Determine color based on severity
+        let color = '#1e90ff'; // Default blue
+        if (severity === 'Extreme') {
+          color = '#ff0000'; // Red for extreme
+        } else if (severity === 'Severe') {
+          color = '#ff7700'; // Orange for severe
+        } else if (severity === 'Moderate') {
+          color = '#ffc107'; // Yellow for moderate
+        }
+        
+        // Determine icon based on event type
+        let icon = '⚠️'; // Default warning icon
+        if (event.includes('tornado')) {
+          icon = '🌪️';
+          color = '#800080'; // Purple for tornado
+        } else if (event.includes('hurricane') || event.includes('tropical')) {
+          icon = '🌀';
+          color = '#ff69b4'; // Pink for hurricane
+        } else if (event.includes('flood')) {
+          icon = '🌊';
+          color = '#1e90ff'; // Blue for flood
+        } else if (event.includes('fire') || event.includes('smoke')) {
+          icon = '🔥';
+          color = '#ff4500'; // Red-orange for fire
+        } else if (event.includes('winter') || event.includes('snow') || event.includes('ice')) {
+          icon = '❄️';
+          color = '#87ceeb'; // Light blue for winter
+        } else if (event.includes('thunder') || event.includes('lightning')) {
+          icon = '⚡';
+          color = '#ffa500'; // Orange for thunder
+        }
+        
+        // Create the flag HTML
+        const flagHtml = `
+          <div class="flag-marker">
+            <div class="flag-pole"></div>
+            <div class="flag-banner" style="background-color: ${color}">${icon}</div>
+            ${isUrgent(alert) ? '<div class="urgent-indicator"></div>' : ''}
+          </div>
+        `;
+        
+        return window.L.divIcon({
+          html: flagHtml,
+          className: 'alert-flag-icon',
+          iconSize: [30, 40],
+          iconAnchor: [5, 40]
+        });
+      };
+
+      // Helper function to format time remaining
+      const formatTimeRemaining = (expiryTime) => {
+        const now = new Date();
+        const expiryDate = new Date(expiryTime);
+        const timeDiff = expiryDate - now;
+        const hoursRemaining = Math.round((timeDiff / (1000 * 60 * 60)) * 10) / 10;
+        
+        if (hoursRemaining <= 0) {
+          return '<span style="color: #ff0000; font-weight: bold;">EXPIRED</span>';
+        } else if (hoursRemaining < 1) {
+          const minutesRemaining = Math.round(hoursRemaining * 60);
+          return `<span style="color: #ff0000; font-weight: bold;">EXPIRES SOON: ${minutesRemaining} minutes remaining</span>`;
+        } else if (hoursRemaining < 3) {
+          return `<span style="color: #ff7700; font-weight: bold;">EXPIRES SOON: ${hoursRemaining} hours remaining</span>`;
+        } else {
+          return `Expires in: ${Math.floor(hoursRemaining)} hours`;
+        }
+      };
+      
+      // Create a marker for alert polygons
+      const addAlertMarker = (lat, lon, alert, isImportant) => {
+        const marker = window.L.marker([lat, lon], { icon: simpleFlagIcon(alert) })
+          .bindPopup(`
+            <div class="alert-popup-content">
+              ${isImportant ? '<div class="alert-popup-header">⚠️ IMPORTANT ALERT ⚠️</div>' : ''}
+              <div class="alert-popup-title">${alert.properties.headline || alert.properties.event}</div>
+              <div class="alert-popup-meta">
+                <span class="alert-severity">${alert.properties.severity}</span>
+                <span class="alert-location">${alert.properties.areaDesc || 'Unknown Area'}</span>
+              </div>
+              <div class="alert-popup-time">
+                <div>Issued: ${new Date(alert.properties.effective).toLocaleString()}</div>
+                <div>${formatTimeRemaining(alert.properties.expires)}</div>
+              </div>
+              ${alert.properties.instruction ? `
+                <div class="alert-popup-instructions">
+                  <strong>Instructions:</strong> ${alert.properties.instruction.substring(0, 150)}${alert.properties.instruction.length > 150 ? '...' : ''}
+                </div>
+              ` : ''}
+              <a href="${alert.properties.url}" target="_blank" class="alert-popup-link">View Full Details</a>
+            </div>
+          `);
+          
+        // Add marker to appropriate cluster group
+        if (isImportant) {
+          flaggedAlertsLayer.addLayer(marker);
+        } else {
+          regularAlertsCluster.addLayer(marker);
+        }
       };
 
       // Process and display NWS alerts
       const alertsByType = {};
       const alertsBySeverity = {};
       let mappedAlertsCount = 0;
+      let flaggedAlertsCount = 0;
+      
+      // Function to determine if an alert should be flagged as critical
+      const shouldFlagAlert = (alert) => {
+        const properties = alert.properties;
+        const eventLower = properties.event.toLowerCase();
+        const severity = properties.severity;
+        
+        // Enhanced flag criteria - flag more alert types
+        return (
+          // Flag all extreme and severe alerts
+          (severity === 'Extreme' || severity === 'Severe') || 
+          // Flag specific hazardous events regardless of severity
+          eventLower.includes('tornado') || 
+          eventLower.includes('hurricane') || 
+          eventLower.includes('flash flood') || 
+          eventLower.includes('wildfire') ||
+          eventLower.includes('tsunami') ||
+          eventLower.includes('earthquake')
+        );
+      };
+
+      // Function to determine flag color based on alert type and severity
+      const getFlagColor = (alert) => {
+        const properties = alert.properties;
+        const eventLower = properties.event.toLowerCase();
+        const severity = properties.severity;
+        
+        // First prioritize by event type
+        if (eventLower.includes('tornado')) {
+          return '#800080'; // Purple for tornadoes
+        } else if (eventLower.includes('hurricane') || eventLower.includes('tropical storm')) {
+          return '#ff69b4'; // Hot pink for hurricanes
+        } else if (eventLower.includes('flood')) {
+          return '#1e90ff'; // Dodger blue for floods
+        } else if (eventLower.includes('fire') || eventLower.includes('wildfire')) {
+          return '#ff4500'; // Orange red for fires
+        } else if (eventLower.includes('tsunami')) {
+          return '#00ffff'; // Cyan for tsunamis
+        } else if (eventLower.includes('earthquake')) {
+          return '#8b4513'; // Saddle brown for earthquakes
+        }
+        
+        // Then by severity if event type doesn't match
+        switch (severity) {
+          case 'Extreme':
+            return '#ff0000'; // Red
+          case 'Severe':
+            return '#ff7700'; // Orange
+          case 'Moderate':
+            return '#ffcc00'; // Yellow
+          default:
+            return '#ff0000'; // Default red
+        }
+      };
+
+      // Create a function to generate flag HTML based on alert properties
+      const createFlagIconHtml = (alert) => {
+        const properties = alert.properties;
+        const eventLower = properties.event.toLowerCase();
+        const severity = properties.severity;
+        const flagColor = getFlagColor(alert);
+        
+        // Check if this is a time-sensitive alert (expiring soon)
+        const now = new Date();
+        const expiryDate = new Date(properties.expires);
+        const timeDiff = expiryDate - now;
+        const hoursRemaining = timeDiff / (1000 * 60 * 60);
+        
+        // Check if this is a critical alert
+        const isCritical = shouldFlagAlert(alert);
+        
+        // Add urgent class if less than 2 hours remaining or it's a critical alert
+        const isUrgent = (hoursRemaining < 2 && hoursRemaining > 0) || (isCritical && hoursRemaining < 6);
+        
+        // Add animation and styling based on alert type
+        const pulseClass = isUrgent ? 'pulse-urgent' : 'pulse-normal';
+        
+        // Create event-specific icon badges
+        let eventBadge = '';
+        if (eventLower.includes('tornado')) {
+          eventBadge = '🌪️';
+        } else if (eventLower.includes('hurricane') || eventLower.includes('tropical')) {
+          eventBadge = '🌀';
+        } else if (eventLower.includes('flood')) {
+          eventBadge = '🌊';
+        } else if (eventLower.includes('fire')) {
+          eventBadge = '🔥';
+        } else if (eventLower.includes('thunder') || eventLower.includes('lightning')) {
+          eventBadge = '⚡';
+        } else if (eventLower.includes('snow') || eventLower.includes('winter')) {
+          eventBadge = '❄️';
+        } else if (eventLower.includes('earthquake')) {
+          eventBadge = '⚠️';
+        } else {
+          eventBadge = '⚠️';
+        }
+        
+        // Make flags for critical alerts slightly larger
+        const scaleStyle = isCritical ? 'transform: scale(1.15);' : '';
+        
+        return `
+          <div class="flag-marker ${pulseClass}" style="${scaleStyle}">
+            <div class="flag-pole" style="${isCritical ? 'width: 4px; background-color: #000;' : ''}"></div>
+            <div class="flag-banner" style="background-color: ${flagColor};">${eventBadge}</div>
+            ${isUrgent ? '<div class="urgent-indicator"></div>' : ''}
+          </div>
+        `;
+      };
+      
+      // Remove this duplicate createFlagIcon function
+      const createFlagIcon = (alert) => {
+        return window.L.divIcon({
+          html: createFlagIconHtml(alert),
+          className: 'alert-flag-icon',
+          iconSize: [30, 40],
+          iconAnchor: [5, 40]
+        });
+      };
+
+      // Update the layer toggle function reference to handle clusters
+      const originalToggleLayer = toggleLayer;
       
       alerts.forEach(alert => {
         const properties = alert.properties;
@@ -381,6 +704,27 @@ function MapSection({ performanceMode }) {
               <a href="${properties.url}" target="_blank">More info</a>
             `)
             .addTo(nwsAlertsLayer);
+            
+            // Calculate centroid of polygon for flag placement
+            let centroidLat = 0;
+            let centroidLon = 0;
+            coordinates.forEach(coord => {
+              centroidLat += coord[0];
+              centroidLon += coord[1];
+            });
+            centroidLat /= coordinates.length;
+            centroidLon /= coordinates.length;
+            
+            // Check if this is an important alert that should be highlighted
+            const isImportantAlert = shouldFlagAlert(alert);
+            
+            // Add a flag marker for this alert using our cluster-enabled function
+            addAlertMarker(centroidLat, centroidLon, alert, isImportantAlert);
+            
+            // Increment flagged count only for important alerts
+            if (isImportantAlert) {
+              flaggedAlertsCount++;
+            }
         }
         // For point alerts
         else if (alert.geometry.type === 'Point') {
@@ -400,6 +744,17 @@ function MapSection({ performanceMode }) {
               <a href="${properties.url}" target="_blank">More info</a>
             `)
             .addTo(nwsAlertsLayer);
+            
+            // Check if this is an important alert that should be highlighted
+            const isImportantAlert = shouldFlagAlert(alert);
+            
+            // Add a flag marker for this alert using our cluster-enabled function
+            addAlertMarker(lat, lon, alert, isImportantAlert);
+            
+            // Increment flagged count only for important alerts
+            if (isImportantAlert) {
+              flaggedAlertsCount++;
+            }
         }
       });
 
@@ -407,7 +762,8 @@ function MapSection({ performanceMode }) {
       setAlertStats({
         byType: alertsByType,
         bySeverity: alertsBySeverity,
-        mappedCount: mappedAlertsCount
+        mappedCount: mappedAlertsCount,
+        flaggedCount: flaggedAlertsCount
       });
 
       // Create custom wildfire icons
@@ -539,10 +895,9 @@ function MapSection({ performanceMode }) {
         }
       });
 
-      // Add layers to map based on active state
-      if (activeDataLayers.nwsAlerts) nwsAlertsLayer.addTo(map);
-      if (activeDataLayers.wildfires) wildfiresLayer.addTo(map);
-      if (activeDataLayers.hurricanes) hurricanesLayer.addTo(map);
+      // After processing all alerts, add the cluster groups to the map if active
+      if (activeDataLayers.nwsAlerts) regularAlertsCluster.addTo(mapInstanceRef.current);
+      if (activeDataLayers.flaggedAlerts) flaggedAlertsLayer.addTo(mapInstanceRef.current);
 
       // Add refresh control
       const refreshControl = window.L.control({ position: 'topleft' });
@@ -567,143 +922,303 @@ function MapSection({ performanceMode }) {
     toggleLayer(layerName);
   };
 
+  // Toggle legend expanded/collapsed state
+  const toggleLegendExpanded = () => {
+    setIsLegendExpanded(!isLegendExpanded);
+  };
+
   // Render the legend outside of the map
   const renderLegend = () => {
     if (loading || error || performanceMode) return null;
 
     return (
-      <div className="disaster-map-legend">
-        <h4>Disaster Map Legend</h4>
-        {lastUpdated && (
-          <div className="timestamp">Last updated: {lastUpdated.toLocaleString()}</div>
-        )}
-        <div className="auto-update-note">Data automatically refreshes every 5 minutes</div>
-        
-        <div className="legend-section">
-          <h5>Data Layers</h5>
-          <div className="layer-toggle">
-            <label>
-              <input 
-                type="checkbox" 
-                checked={activeDataLayers.nwsAlerts} 
-                onChange={() => handleLayerToggle('nwsAlerts')}
-              />
-              <span>NWS Alerts ({alerts.length})</span>
-            </label>
-            <div className="mapping-stats">
-              <em>
-                Mapped: {alertStats.mappedCount} of {alerts.length} alerts 
-                ({alerts.length > 0 ? Math.round(alertStats.mappedCount/alerts.length*100) : 0}%)
-              </em>
-              <br/>
-              <em>Note: Only alerts with geometry data appear on map</em>
-            </div>
-          </div>
-          <div className="layer-toggle">
-            <label>
-              <input 
-                type="checkbox" 
-                checked={activeDataLayers.wildfires} 
-                onChange={() => handleLayerToggle('wildfires')}
-              />
-              <span>Wildfires ({wildfires.length})</span>
-            </label>
-          </div>
-          <div className="layer-toggle">
-            <label>
-              <input 
-                type="checkbox" 
-                checked={activeDataLayers.hurricanes} 
-                onChange={() => handleLayerToggle('hurricanes')}
-              />
-              <span>Hurricanes ({hurricanes.length})</span>
-            </label>
-          </div>
+      <div className={`disaster-map-legend ${isLegendExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="legend-header">
+          <h4>Disaster Map Legend</h4>
+          <button 
+            className="legend-toggle-button"
+            onClick={toggleLegendExpanded}
+            aria-label={isLegendExpanded ? "Collapse legend" : "Expand legend"}
+          >
+            {isLegendExpanded ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 14l5-5 5 5z"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            )}
+          </button>
         </div>
         
-        {alertStats.bySeverity && Object.keys(alertStats.bySeverity).length > 0 && (
-          <div className="legend-section">
-            <h5>Alert Severities</h5>
-            {(() => {
-              // Define the order we want to display severities
-              const severityOrder = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'];
-              
-              // Sort the severities according to our defined order
-              const sortedSeverities = Object.keys(alertStats.bySeverity).sort((a, b) => {
-                return severityOrder.indexOf(a) - severityOrder.indexOf(b);
-              });
-              
-              return sortedSeverities.map(severity => {
-                let color;
-                switch (severity) {
-                  case 'Extreme':
-                    color = 'darkred';
-                    break;
-                  case 'Severe':
-                    color = 'red';
-                    break;
-                  case 'Moderate':
-                    color = 'orange';
-                    break;
-                  case 'Minor':
-                    color = 'yellow';
-                    break;
-                  default:
-                    color = 'blue';
-                }
-                
-                return (
-                  <div key={severity} className="legend-item">
-                    <span className="color-dot" style={{ backgroundColor: color }}></span>
-                    <span className="legend-label">
-                      {severity} ({alertStats.bySeverity[severity].length})
-                    </span>
+        {isLegendExpanded && (
+          <>
+            {lastUpdated && (
+              <div className="timestamp">Last updated: {lastUpdated.toLocaleString()}</div>
+            )}
+            <div className="auto-update-note">Data automatically refreshes every 5 minutes</div>
+            
+            <div className="legend-section">
+              <h5>Map Layers</h5>
+              <div className="layer-toggle">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={activeDataLayers.nwsAlerts} 
+                    onChange={() => handleLayerToggle('nwsAlerts')}
+                  />
+                  <span>NWS Alerts ({alerts.length})</span>
+                </label>
+                <div className="mapping-stats">
+                  <em>
+                    Mapped: {alertStats.mappedCount} of {alerts.length} alerts 
+                    ({alerts.length > 0 ? Math.round(alertStats.mappedCount/alerts.length*100) : 0}%)
+                  </em>
+                  <br/>
+                  <em>All alerts are displayed as flag markers on the map</em>
+                </div>
+              </div>
+              <div className="layer-toggle">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={activeDataLayers.flaggedAlerts}
+                    onChange={() => handleLayerToggle('flaggedAlerts')}
+                  />
+                  <span>Critical Alerts ({alertStats.flaggedCount || 0})</span>
+                </label>
+                {alertStats.flaggedCount > 0 && (
+                  <div className="mapping-stats">
+                    <em>
+                      Severe and high-priority alerts requiring immediate attention
+                    </em>
                   </div>
-                );
-              });
-            })()}
-          </div>
+                )}
+              </div>
+              <div className="layer-toggle">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={activeDataLayers.wildfires} 
+                    onChange={() => handleLayerToggle('wildfires')}
+                  />
+                  <span>Wildfires ({wildfires.length})</span>
+                </label>
+              </div>
+              <div className="layer-toggle">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={activeDataLayers.hurricanes} 
+                    onChange={() => handleLayerToggle('hurricanes')}
+                  />
+                  <span>Hurricanes ({hurricanes.length})</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="legend-section">
+              <h5>Alert Flag Guide</h5>
+              <div className="flag-guide">
+                <div className="flag-example-row">
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#ff0000'}}>⚠️</div>
+                    <span>Extreme</span>
+                  </div>
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#ff7700'}}>⚠️</div>
+                    <span>Severe</span>
+                  </div>
+                </div>
+                <div className="flag-example-row">
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#800080'}}>🌪️</div>
+                    <span>Tornado</span>
+                  </div>
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#ff69b4'}}>🌀</div>
+                    <span>Hurricane</span>
+                  </div>
+                </div>
+                <div className="flag-example-row">
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#1e90ff'}}>🌊</div>
+                    <span>Flood</span>
+                  </div>
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#ff4500'}}>🔥</div>
+                    <span>Fire</span>
+                  </div>
+                </div>
+                <div className="flag-example-row">
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#87ceeb'}}>❄️</div>
+                    <span>Winter</span>
+                  </div>
+                  <div className="flag-example">
+                    <div className="mini-flag" style={{backgroundColor: '#ffa500'}}>⚡</div>
+                    <span>Thunder</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {alertStats.bySeverity && Object.keys(alertStats.bySeverity).length > 0 && (
+              <div className="legend-section">
+                <h5>Alerts by Severity</h5>
+                <div className="severity-stats">
+                  {(() => {
+                    // Define the order we want to display severities
+                    const severityOrder = ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'];
+                    
+                    // Sort the severities according to our defined order
+                    const sortedSeverities = Object.keys(alertStats.bySeverity).sort((a, b) => {
+                      return severityOrder.indexOf(a) - severityOrder.indexOf(b);
+                    });
+                    
+                    return sortedSeverities.map(severity => {
+                      let color;
+                      switch (severity) {
+                        case 'Extreme':
+                          color = 'darkred';
+                          break;
+                        case 'Severe':
+                          color = 'red';
+                          break;
+                        case 'Moderate':
+                          color = 'orange';
+                          break;
+                        case 'Minor':
+                          color = 'yellow';
+                          break;
+                        default:
+                          color = 'blue';
+                      }
+                      
+                      const count = alertStats.bySeverity[severity].length;
+                      const percentage = alerts.length > 0 
+                        ? Math.round((count / alerts.length) * 100)
+                        : 0;
+                      
+                      return (
+                        <div key={severity} className="severity-item">
+                          <div className="severity-label">
+                            <span className="color-dot" style={{ backgroundColor: color }}></span>
+                            <span className="legend-label">{severity}</span>
+                          </div>
+                          <div className="severity-bar-container">
+                            <div 
+                              className="severity-bar" 
+                              style={{ 
+                                width: `${percentage}%`,
+                                backgroundColor: color,
+                                minWidth: count > 0 ? '10px' : '0'
+                              }}
+                            ></div>
+                            <span className="severity-count">{count} ({percentage}%)</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+            
+            {alertStats.byType && Object.keys(alertStats.byType).length > 0 && (
+              <div className="legend-section">
+                <h5>Top Alert Categories</h5>
+                <div className="type-stats">
+                  {(() => {
+                    // Create a sortable array of event types with their counts
+                    const eventTypeEntries = Object.entries(alertStats.byType)
+                      .map(([type, alerts]) => ({ type, count: alerts.length }))
+                      .sort((a, b) => b.count - a.count); // Sort by count, descending
+                    
+                    // Only show top 6 categories
+                    const topEventTypes = eventTypeEntries.slice(0, 6);
+                    
+                    return topEventTypes.map(({ type, count }) => {
+                      let color = 'blue';
+                      const typeLower = type.toLowerCase();
+                      
+                      if (typeLower.includes('flood')) {
+                        color = '#1e90ff';
+                      } else if (typeLower.includes('tornado')) {
+                        color = '#800080';
+                      } else if (typeLower.includes('thunderstorm') || typeLower.includes('lightning')) {
+                        color = '#ffa500';
+                      } else if (typeLower.includes('fire') || typeLower.includes('smoke')) {
+                        color = '#ff4500';
+                      } else if (typeLower.includes('winter') || typeLower.includes('snow') || typeLower.includes('ice')) {
+                        color = '#87ceeb';
+                      } else if (typeLower.includes('hurricane') || typeLower.includes('tropical')) {
+                        color = '#ff69b4';
+                      } else if (typeLower.includes('heat')) {
+                        color = '#dc143c';
+                      }
+                      
+                      const percentage = alerts.length > 0 
+                        ? Math.round((count / alerts.length) * 100)
+                        : 0;
+                      
+                      return (
+                        <div key={type} className="type-item">
+                          <div className="type-label">
+                            <span className="color-dot" style={{ backgroundColor: color }}></span>
+                            <span className="legend-label" title={type}>
+                              {type.length > 20 ? type.substring(0, 18) + '...' : type}
+                            </span>
+                          </div>
+                          <div className="type-bar-container">
+                            <div 
+                              className="type-bar" 
+                              style={{ 
+                                width: `${percentage}%`,
+                                backgroundColor: color,
+                                minWidth: count > 0 ? '10px' : '0'
+                              }}
+                            ></div>
+                            <span className="type-count">{count} ({percentage}%)</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                  {Object.keys(alertStats.byType).length > 6 && (
+                    <div className="more-types-note">
+                      <em>+ {Object.keys(alertStats.byType).length - 6} more categories</em>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="legend-section legend-footer">
+              <button 
+                className="legend-refresh-button" 
+                onClick={handleRefreshData}
+              >
+                Refresh Data
+              </button>
+            </div>
+          </>
         )}
-        
-        {alertStats.byType && Object.keys(alertStats.byType).length > 0 && (
-          <div className="legend-section">
-            <h5>All Alert Categories</h5>
-            {(() => {
-              // Create a sortable array of event types with their counts
-              const eventTypeEntries = Object.entries(alertStats.byType)
-                .map(([type, alerts]) => ({ type, count: alerts.length }))
-                .sort((a, b) => b.count - a.count); // Sort by count, descending
-              
-              return eventTypeEntries.map(({ type, count }) => {
-                let color = 'blue';
-                const typeLower = type.toLowerCase();
-                
-                if (typeLower.includes('flood')) {
-                  color = '#1e90ff';
-                } else if (typeLower.includes('tornado')) {
-                  color = '#800080';
-                } else if (typeLower.includes('thunderstorm') || typeLower.includes('lightning')) {
-                  color = '#ffa500';
-                } else if (typeLower.includes('fire') || typeLower.includes('smoke')) {
-                  color = '#ff4500';
-                } else if (typeLower.includes('winter') || typeLower.includes('snow') || typeLower.includes('ice')) {
-                  color = '#87ceeb';
-                } else if (typeLower.includes('hurricane') || typeLower.includes('tropical')) {
-                  color = '#ff69b4';
-                } else if (typeLower.includes('heat')) {
-                  color = '#dc143c';
-                }
-                
-                return (
-                  <div key={type} className="legend-item">
-                    <span className="color-dot" style={{ backgroundColor: color }}></span>
-                    <span className="legend-label">
-                      {type} ({count})
-                    </span>
-                  </div>
-                );
-              });
-            })()}
+        {!isLegendExpanded && (
+          <div className="collapsed-legend-summary">
+            <div className="collapsed-stats">
+              <span>Alerts: {alerts.length}</span>
+              <span>Critical: {alertStats.flaggedCount}</span>
+              <span>Wildfires: {wildfires.length}</span>
+              <span>Hurricanes: {hurricanes.length}</span>
+            </div>
+            <button 
+              className="legend-refresh-button collapsed-refresh" 
+              onClick={handleRefreshData}
+            >
+              Refresh
+            </button>
           </div>
         )}
       </div>
