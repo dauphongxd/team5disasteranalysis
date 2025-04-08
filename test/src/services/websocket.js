@@ -1,60 +1,50 @@
 import { io } from 'socket.io-client';
 
-const URL = process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:5000';
-let socket;
-
-export const connectWebSocket = () => {
-    console.log('Attempting to connect WebSocket to:', URL);
-    // Disconnect previous socket if exists
-    if (socket) {
-        socket.disconnect();
-    }
-    // Connect to the explicit URL
-    socket = io(URL, {
-        // Optional: Add transports for robustness if needed
-        // transports: ['websocket', 'polling']
-    });
-
-    socket.on('connect', () => {
-        console.log('WebSocket connected:', socket.id);
-        // You might want to call a callback here to update connection status in UI
-    });
-
-    socket.on('disconnect', (reason) => {
-        console.log('WebSocket disconnected:', reason);
-        // Update UI status
-    });
-
-    socket.on('connect_error', (err) => {
-        console.error('WebSocket connection error:', err);
-        // Update UI status
-    });
-};
-
+// Singleton pattern to ensure only one socket instance
+let socketInstance = null;
+let connectionPromise = null;
 
 class WebSocketService {
     constructor() {
+        // Don't create a new instance if one already exists
+        if (socketInstance) {
+            return socketInstance;
+        }
+
         this.socket = null;
         this.isConnected = false;
         this.listeners = new Map();
+        socketInstance = this;
     }
 
     connect(url) {
-        return new Promise((resolve, reject) => {
+        // Only attempt to connect if we're not already connecting or connected
+        if (connectionPromise) {
+            return connectionPromise;
+        }
+
+        if (this.isConnected && this.socket) {
+            console.log('WebSocket already connected');
+            return Promise.resolve();
+        }
+
+        console.log('Connecting to Socket.IO server:', url);
+
+        connectionPromise = new Promise((resolve, reject) => {
             try {
                 // Close existing socket if any
                 if (this.socket) {
                     this.socket.disconnect();
                 }
 
-                console.log('Connecting to Socket.IO server:', url);
-
                 // Create Socket.IO client
                 this.socket = io(url, {
                     transports: ['websocket'],
                     reconnection: true,
                     reconnectionAttempts: 5,
-                    reconnectionDelay: 1000
+                    reconnectionDelay: 1000,
+                    // Add connection timeout
+                    timeout: 10000
                 });
 
                 // Handle connection events
@@ -67,10 +57,13 @@ class WebSocketService {
                 this.socket.on('disconnect', () => {
                     console.log('Socket.IO disconnected');
                     this.isConnected = false;
+                    connectionPromise = null;
                 });
 
                 this.socket.on('connect_error', (error) => {
                     console.error('Socket.IO connection error:', error);
+                    this.isConnected = false;
+                    connectionPromise = null;
                     reject(error);
                 });
 
@@ -82,9 +75,13 @@ class WebSocketService {
 
             } catch (error) {
                 console.error('Error creating Socket.IO connection:', error);
+                this.isConnected = false;
+                connectionPromise = null;
                 reject(error);
             }
         });
+
+        return connectionPromise;
     }
 
     disconnect() {
@@ -93,6 +90,7 @@ class WebSocketService {
             this.socket = null;
         }
         this.isConnected = false;
+        connectionPromise = null;
         console.log('Socket.IO disconnected by client');
     }
 
@@ -103,9 +101,9 @@ class WebSocketService {
         }
     }
 
-    // Subscribe to specific disaster type
+    // Subscribe to specific disaster type - only if connected
     subscribeToDisasterType(disasterType) {
-        if (!this.isConnected) {
+        if (!this.isConnected || !this.socket) {
             console.warn('Cannot subscribe: Socket.IO not connected');
             return;
         }
@@ -136,15 +134,11 @@ class WebSocketService {
             this.listeners.get(event).delete(callback);
         }
     }
-}
 
-export const onNewPost = (callback) => {
-    socket?.on('new_post', callback);
-};
-
-export const subscribeToDisaster = (disasterType) => {
-    console.log(`Emitting subscribe for: ${disasterType}`);
-    socket?.emit('subscribe', { disasterType });
+    // Check connection status
+    isSocketConnected() {
+        return this.isConnected && this.socket !== null;
+    }
 }
 
 // Create and export a singleton instance

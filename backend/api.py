@@ -1,15 +1,16 @@
-# api.py
+# api.py with improved DynamoDB connection handling
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import boto3
 import os
 from dotenv import load_dotenv
 import json
-from datetime import datetime, timedelta  # Added timedelta import
+from datetime import datetime, timedelta
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 import logging
 from flask_socketio import SocketIO, emit
+import time
 
 # Set up logging
 logging.basicConfig(
@@ -34,9 +35,30 @@ WEATHER_TABLE = 'DisasterFeed_WeatherData'
 
 connected_clients = {}
 
-# Initialize DynamoDB client
+# Singleton DynamoDB client
+_dynamodb_instance = None
+_last_initialization_time = 0
+_initialization_lock = False
+
+
+# Get DynamoDB client with connection reuse
 def get_dynamodb():
+    global _dynamodb_instance, _last_initialization_time, _initialization_lock
+
+    # If already initializing, wait a bit and return existing instance
+    if _initialization_lock:
+        logger.info("Another thread is initializing DynamoDB, waiting...")
+        time.sleep(0.1)
+        return _dynamodb_instance
+
+    # If we have an instance and it's recent (less than 15 minutes old), reuse it
+    current_time = time.time()
+    if _dynamodb_instance and (current_time - _last_initialization_time < 900):  # 15 minutes
+        return _dynamodb_instance
+
     try:
+        _initialization_lock = True
+
         region = os.getenv('AWS_REGION', 'us-east-1')
         aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
         aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
@@ -46,13 +68,44 @@ def get_dynamodb():
             raise ValueError("AWS credentials missing. Check your environment variables.")
 
         logger.info(f"Initializing DynamoDB in region {region}")
-        return boto3.resource('dynamodb',
-                              region_name=region,
-                              aws_access_key_id=aws_access_key_id,
-                              aws_secret_access_key=aws_secret_access_key)
+        _dynamodb_instance = boto3.resource('dynamodb',
+                                            region_name=region,
+                                            aws_access_key_id=aws_access_key_id,
+                                            aws_secret_access_key=aws_secret_access_key)
+
+        # Update last initialization time
+        _last_initialization_time = current_time
+
+        return _dynamodb_instance
     except Exception as e:
         logger.error(f"Failed to initialize DynamoDB: {e}")
         raise
+    finally:
+        _initialization_lock = False
+
+
+# Simple response cache
+response_cache = {}
+CACHE_EXPIRATION = 30  # seconds
+
+
+def get_cached_response(cache_key):
+    """Get a cached response if valid"""
+    if cache_key in response_cache:
+        entry = response_cache[cache_key]
+        # Check if cache entry is still valid
+        if time.time() - entry['timestamp'] < CACHE_EXPIRATION:
+            logger.info(f"Using cached response for: {cache_key}")
+            return entry['data']
+    return None
+
+
+def set_cached_response(cache_key, data):
+    """Cache a response"""
+    response_cache[cache_key] = {
+        'data': data,
+        'timestamp': time.time()
+    }
 
 
 # Helper function to convert Decimal to float for JSON serialization
@@ -84,7 +137,7 @@ def handle_subscribe(data):
     connected_clients[request.sid] = {'disaster_type': disaster_type}
 
 
-# Endpoint to broadcast a new post (used by test_realtime.py)
+# Endpoint to broadcast a new post
 @app.route('/api/notify-new-post', methods=['POST'])
 def notify_new_post():
     try:
@@ -130,6 +183,7 @@ def broadcast_post(post):
         if client_disaster_type == 'all' or client_disaster_type == post_disaster_type:
             socketio.emit('new_post', {"type": "new_post", "post": formatted_post}, room=sid)
 
+
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
     try:
@@ -137,6 +191,14 @@ def get_posts():
         disaster_type = request.args.get('type', 'all')
         limit = int(request.args.get('limit', 50))
         next_token = request.args.get('next_token')  # For pagination
+
+        # Generate cache key
+        cache_key = f"posts_{disaster_type}_{limit}_{next_token}"
+
+        # Check cache first
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
 
         logger.info(f"Getting posts with type={disaster_type}, limit={limit}")
 
@@ -200,11 +262,17 @@ def get_posts():
         if 'LastEvaluatedKey' in response:
             result['next_token'] = json.dumps(response['LastEvaluatedKey'])
 
-        return app.response_class(
+        # Create the API response
+        api_response = app.response_class(
             response=json.dumps(result, cls=DecimalEncoder),
             status=200,
             mimetype='application/json'
         )
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_posts: {e}")
@@ -214,6 +282,12 @@ def get_posts():
 @app.route('/api/disaster-summary', methods=['GET'])
 def get_disaster_summary():
     try:
+        # Check cache first
+        cache_key = "disaster_summary"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
+
         logger.info("Generating disaster summary")
 
         dynamodb = get_dynamodb()
@@ -278,11 +352,17 @@ def get_disaster_summary():
 
         logger.info(f"Generated summary with {len(result)} disaster types")
 
-        return app.response_class(
+        # Create the API response
+        api_response = app.response_class(
             response=json.dumps(result, cls=DecimalEncoder),
             status=200,
             mimetype='application/json'
         )
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_disaster_summary: {e}")
@@ -292,6 +372,12 @@ def get_disaster_summary():
 @app.route('/api/disaster-types', methods=['GET'])
 def get_disaster_types():
     try:
+        # Check cache first
+        cache_key = "disaster_types"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
+
         logger.info("Fetching unique disaster types")
 
         dynamodb = get_dynamodb()
@@ -326,7 +412,12 @@ def get_disaster_types():
 
         logger.info(f"Found {len(result)} unique disaster types")
 
-        return jsonify(result)
+        api_response = jsonify(result)
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_disaster_types: {e}")
@@ -337,6 +428,12 @@ def get_disaster_types():
 def get_disaster_distribution():
     """Get count and percentage of posts by disaster type"""
     try:
+        # Check cache first
+        cache_key = "disaster_distribution"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
+
         dynamodb = get_dynamodb()
         posts_table = dynamodb.Table(POSTS_TABLE)
 
@@ -383,11 +480,16 @@ def get_disaster_distribution():
         # Sort by count descending
         result["data"].sort(key=lambda x: x["count"], reverse=True)
 
-        return app.response_class(
+        api_response = app.response_class(
             response=json.dumps(result, cls=DecimalEncoder),
             status=200,
             mimetype='application/json'
         )
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_disaster_distribution: {e}")
@@ -402,6 +504,12 @@ def get_disaster_timeline():
         interval = request.args.get('interval', 'daily')  # daily, weekly, monthly
         days = int(request.args.get('days', '30'))  # last 30 days by default
         disaster_type = request.args.get('type', None)  # optional filter
+
+        # Generate cache key
+        cache_key = f"disaster_timeline_{interval}_{days}_{disaster_type}"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
 
         dynamodb = get_dynamodb()
         posts_table = dynamodb.Table(POSTS_TABLE)
@@ -507,7 +615,12 @@ def get_disaster_timeline():
             "datasets": datasets
         }
 
-        return jsonify(result)
+        api_response = jsonify(result)
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_disaster_timeline: {e}")
@@ -518,6 +631,12 @@ def get_disaster_timeline():
 def get_post_volume_metrics():
     """Get overall post volume metrics"""
     try:
+        # Check cache first
+        cache_key = "post_volume_metrics"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
+
         dynamodb = get_dynamodb()
         posts_table = dynamodb.Table(POSTS_TABLE)
 
@@ -572,16 +691,33 @@ def get_post_volume_metrics():
             }
         }
 
-        return app.response_class(
+        api_response = app.response_class(
             response=json.dumps(result, cls=DecimalEncoder),
             status=200,
             mimetype='application/json'
         )
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
 
     except Exception as e:
         logger.error(f"Error in get_post_volume_metrics: {e}")
         return jsonify({"error": str(e)}), 500
 
 
+# Endpoint to clear cache (for debugging/testing)
+@app.route('/api/clear-cache', methods=['POST'])
+def clear_cache():
+    try:
+        global response_cache
+        response_cache = {}
+        return jsonify({"status": "success", "message": "Cache cleared"}), 200
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True, port=8000)

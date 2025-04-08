@@ -23,10 +23,10 @@ ChartJS.register(
     Legend
 );
 
-// Super category mapping
+// Super category mapping with exact mapping as specified
 const disasterCategoriesMapping = {
-  fire: ["wild fire", "bush fire", "forest fire", "wildfire", "bushfire", "forestfire"],
-  storm: ["storm", "blizzard", "cyclone", "dust storm", "hurricane", "tornado", "typhoon"],
+  fire: ["wild_fire", "bush_fire", "forest_fire"],
+  storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
   earthquake: ["earthquake"],
   tsunami: ["tsunami"],
   volcano: ["volcano"],
@@ -35,8 +35,20 @@ const disasterCategoriesMapping = {
   other: ["haze", "meteor", "unknown"]
 };
 
+// Super category display names
+const superCategoryNames = {
+  fire: "Fire",
+  storm: "Storm",
+  earthquake: "Earthquake",
+  tsunami: "Tsunami",
+  volcano: "Volcano",
+  flood: "Flood",
+  landslide: "Landslide",
+  other: "Other"
+};
+
 const Timechart = ({ selectedDisaster }) => {
-  const [view, setView] = useState("weekly"); // Default to weekly, removing daily
+  const [view, setView] = useState("weekly"); // Use API's interval property: "daily", "weekly", "monthly"
   const [timeframeInDays, setTimeframeInDays] = useState(84); // 12 weeks by default
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,33 +84,26 @@ const Timechart = ({ selectedDisaster }) => {
     }
   };
 
-  // Format month label for display
-  const formatMonthLabel = (monthStr) => {
-    try {
-      // If it's in YYYY-MM format
-      if (monthStr.match(/^\d{4}-\d{2}$/)) {
-        const [year, month] = monthStr.split("-");
-        const date = new Date(parseInt(year), parseInt(month) - 1);
-        return date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
-      } else {
-        // Try to parse it as a date string
-        const date = new Date(monthStr);
-        return date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+  // Helper function to get super category for a disaster type
+  const getSuperCategoryForType = (disasterType) => {
+    if (!disasterType) return 'other';
+
+    // First, normalize the disaster type
+    const normalizedType = disasterType.toLowerCase();
+
+    // Check if the type is a super category itself
+    if (Object.keys(disasterCategoriesMapping).includes(normalizedType)) {
+      return normalizedType;
+    }
+
+    // Check each super category to see if it includes this type
+    for (const [superCategory, subTypes] of Object.entries(disasterCategoriesMapping)) {
+      if (subTypes.includes(normalizedType)) {
+        return superCategory;
       }
-    } catch (e) {
-      return monthStr; // Return as is if parsing fails
-    }
-  };
-
-  // Get subcategories for selected super category
-  const getSubcategoriesForSelectedDisaster = () => {
-    if (selectedDisaster === 'all') {
-      // For 'all', return all subcategories from all super categories
-      return Object.values(disasterCategoriesMapping).flat();
     }
 
-    // Return the subcategories for the selected super category
-    return disasterCategoriesMapping[selectedDisaster] || [];
+    return 'other'; // Default to other if no match
   };
 
   // Use useCallback to memoize the fetchTimelineData function
@@ -109,116 +114,137 @@ const Timechart = ({ selectedDisaster }) => {
 
       console.log("Fetching timeline data for disaster type:", selectedDisaster);
 
-      // Get subcategories for the selected super category
-      const subcategories = getSubcategoriesForSelectedDisaster();
-      console.log("Subcategories to fetch:", subcategories);
-
-      let combinedChartData = {
-        labels: [],
-        datasets: []
-      };
-
       // If we're in monthly view, pre-generate the labels
       const monthlyLabels = view === "monthly" ? generateMonthlyLabels() : [];
 
-      // For "all" category or a super category, we need to fetch data for each subcategory
-      // We'll fetch them in parallel
-      const fetchPromises = [];
+      // Use the api module to fetch all disaster data in one call
+      const data = await api.getDisasterTimeline(view, timeframeInDays, 'all');
+
+      if (!data || !data.labels || !data.datasets) {
+        throw new Error('Invalid data format received from API');
+      }
+
+      // The final datasets we'll display
+      let finalDatasets = [];
+
+      // Common colors to use for datasets
+      const colors = ["#36A2EB", "#FF6384", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#8E44AD", "#1ABC9C"];
+
+      // Process all labels
+      let allLabels = data.labels;
+
+      // For monthly view, use our pre-generated labels
+      if (view === "monthly") {
+        allLabels = monthlyLabels;
+      }
 
       if (selectedDisaster === 'all') {
-        // For "all", just make a single API call with "all"
-        fetchPromises.push(api.getDisasterTimeline(view, timeframeInDays, 'all'));
-      } else {
-        // For a specific super category, fetch data for each subcategory
-        subcategories.forEach(subcategory => {
-          fetchPromises.push(api.getDisasterTimeline(view, timeframeInDays, subcategory));
+        // When "all" is selected, we want to show super categories
+
+        // First, aggregate data by super category
+        const superCategoryData = {};
+
+        // Initialize each super category with zeros
+        Object.keys(superCategoryNames).forEach(category => {
+          superCategoryData[category] = Array(allLabels.length).fill(0);
         });
-      }
 
-      const results = await Promise.all(fetchPromises);
-
-      // Process results
-      let allLabels = new Set();
-      const datasetsByCategory = {};
-
-      results.forEach((data, index) => {
-        if (!data || !data.labels || !data.datasets) {
-          console.warn("Invalid data format received from API for subcategory:", index);
-          return;
-        }
-
-        // Add labels to our set of all labels (for weekly view)
-        if (view === "weekly") {
-          data.labels.forEach(label => allLabels.add(label));
-        }
-
-        // Process each dataset in this result
+        // Go through each dataset and add its values to the appropriate super category
         data.datasets.forEach(dataset => {
-          // Store the dataset with its label as the key
-          datasetsByCategory[dataset.label] = dataset.data.map((value, i) => ({
-            label: data.labels[i],
-            value
-          }));
+          const disasterType = dataset.label.toLowerCase();
+          const superCategory = getSuperCategoryForType(disasterType);
+
+          dataset.data.forEach((value, i) => {
+            // Handle potential label mismatch for monthly view
+            let labelIndex = i;
+            if (view === "monthly") {
+              const label = data.labels[i];
+              const normalizedLabel = normalizeMonthString(label);
+              labelIndex = allLabels.indexOf(normalizedLabel);
+            }
+
+            if (labelIndex !== -1) {
+              superCategoryData[superCategory][labelIndex] += value;
+            }
+          });
         });
-      });
 
-      // Prepare final datasets
-      const finalDatasets = [];
-      const colors = ["#36A2EB", "#FF6384", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#8E44AD", "#1ABC9C"];
-      let colorIndex = 0;
-
-      // For weekly view, we need to sort the labels chronologically
-      let finalLabels = [];
-      if (view === "weekly") {
-        finalLabels = Array.from(allLabels).sort();
-      } else if (view === "monthly") {
-        finalLabels = monthlyLabels;
-      }
-
-      // Create a dataset for each disaster category
-      Object.entries(datasetsByCategory).forEach(([categoryName, dataPoints]) => {
-        const color = colors[colorIndex % colors.length];
-        colorIndex++;
-
-        // Initialize an array of zeros for all labels
-        const values = Array(finalLabels.length).fill(0);
-
-        // Fill in the actual values where we have data
-        dataPoints.forEach(point => {
-          let labelIndex;
-
-          if (view === "weekly") {
-            labelIndex = finalLabels.indexOf(point.label);
-          } else if (view === "monthly") {
-            // For monthly, we need to normalize the date format first
-            const normalizedPointLabel = normalizeMonthString(point.label);
-            labelIndex = finalLabels.indexOf(normalizedPointLabel);
-          }
-
-          if (labelIndex !== -1) {
-            values[labelIndex] = point.value;
+        // Create a dataset for each super category
+        let colorIndex = 0;
+        Object.entries(superCategoryData).forEach(([category, values]) => {
+          // Skip categories with all zeros
+          if (values.some(v => v > 0)) {
+            finalDatasets.push({
+              label: superCategoryNames[category] || capitalizeFirstLetter(category),
+              data: values,
+              borderColor: colors[colorIndex % colors.length],
+              backgroundColor: colors[colorIndex % colors.length] + "80", // Add transparency
+              fill: true
+            });
+            colorIndex++;
           }
         });
+      } else {
+        // When a specific super category is selected, show all its subcategories
+        const subcategories = disasterCategoriesMapping[selectedDisaster] || [];
+        const foundSubcategories = new Set();
 
-        finalDatasets.push({
-          label: capitalizeFirstLetter(categoryName),
-          data: values,
-          borderColor: color,
-          backgroundColor: color + "80",
-          fill: true
+        // First, add subcategories that exist in the data
+        data.datasets.forEach((dataset, index) => {
+          const disasterType = dataset.label.toLowerCase();
+          const superCategory = getSuperCategoryForType(disasterType);
+
+          if (superCategory === selectedDisaster) {
+            foundSubcategories.add(disasterType);
+
+            // Map the data to our labels
+            const mappedData = Array(allLabels.length).fill(0);
+
+            dataset.data.forEach((value, i) => {
+              // Handle potential label mismatch for monthly view
+              let labelIndex = i;
+              if (view === "monthly") {
+                const label = data.labels[i];
+                const normalizedLabel = normalizeMonthString(label);
+                labelIndex = allLabels.indexOf(normalizedLabel);
+              }
+
+              if (labelIndex !== -1) {
+                mappedData[labelIndex] = value;
+              }
+            });
+
+            finalDatasets.push({
+              label: capitalizeFirstLetter(disasterType.replace('_', ' ')),
+              data: mappedData,
+              borderColor: colors[index % colors.length],
+              backgroundColor: colors[index % colors.length] + "80", // Add transparency
+              fill: true
+            });
+          }
         });
-      });
 
-      // Format labels for display
-      let displayLabels;
-      if (view === "weekly") {
-        displayLabels = finalLabels.map(label => formatDateLabel(label, "weekly"));
-      } else if (view === "monthly") {
-        displayLabels = finalLabels.map(label => formatMonthLabel(label));
+        // Then add empty datasets for subcategories that don't exist in the data
+        let extraColorIndex = finalDatasets.length;
+        subcategories.forEach(subcategory => {
+          if (!foundSubcategories.has(subcategory)) {
+            finalDatasets.push({
+              label: capitalizeFirstLetter(subcategory.replace('_', ' ')),
+              data: Array(allLabels.length).fill(0),
+              borderColor: colors[extraColorIndex % colors.length],
+              backgroundColor: colors[extraColorIndex % colors.length] + "80", // Add transparency
+              fill: true
+            });
+            extraColorIndex++;
+          }
+        });
       }
+
+      // Format the labels for display
+      const formattedLabels = allLabels.map(label => formatDateLabel(label, view));
 
       setChartData({
-        labels: displayLabels,
+        labels: formattedLabels,
         datasets: finalDatasets
       });
 
@@ -238,7 +264,11 @@ const Timechart = ({ selectedDisaster }) => {
   // Helper function to format date labels based on current view
   const formatDateLabel = (label, viewType) => {
     try {
-      if (viewType === "weekly") {
+      if (viewType === "daily") {
+        // For daily view, format as "MMM DD"
+        const date = new Date(label);
+        return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } else if (viewType === "weekly") {
         // For weekly view, we use the date as the start of week
         const date = new Date(label);
         const endOfWeek = new Date(date);
@@ -248,6 +278,17 @@ const Timechart = ({ selectedDisaster }) => {
             "en-US",
             { month: "short", day: "numeric" }
         )}`;
+      } else if (viewType === "monthly") {
+        // For monthly view, format as "MMM YYYY"
+        if (label.match(/^\d{4}-\d{2}$/)) {
+          // If in YYYY-MM format
+          const [year, month] = label.split("-");
+          const date = new Date(parseInt(year), parseInt(month) - 1);
+          return date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+        } else {
+          // Just use as is
+          return label;
+        }
       }
       return label; // Return original label if parsing fails
     } catch (e) {
@@ -261,17 +302,18 @@ const Timechart = ({ selectedDisaster }) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
-  // Chart options configuration
+  // Chart options configuration - keep original design
   const options = {
     responsive: true,
-    maintainAspectRatio: true,
     plugins: {
       legend: {
         position: "top",
       },
       title: {
         display: true,
-        text: `${capitalizeFirstLetter(view)} Disaster Trends`,
+        text: selectedDisaster === 'all'
+            ? `${capitalizeFirstLetter(view)} Disaster Trends by Category`
+            : `${capitalizeFirstLetter(view)} ${superCategoryNames[selectedDisaster] || capitalizeFirstLetter(selectedDisaster)} Disaster Trends`,
         color: "#ffffff", // Match your theme
       },
       tooltip: {
@@ -300,7 +342,7 @@ const Timechart = ({ selectedDisaster }) => {
       x: {
         title: {
           display: true,
-          text: view === "weekly" ? "Week" : "Month",
+          text: view === "daily" ? "Date" : view === "weekly" ? "Week" : "Month",
           color: "#ffffff", // Match your theme
         },
         ticks: {
@@ -317,6 +359,9 @@ const Timechart = ({ selectedDisaster }) => {
   const handleViewToggle = (newView) => {
     // Update timeframe appropriately with the new view
     switch (newView) {
+      case "daily":
+        setTimeframeInDays(30); // Last 30 days
+        break;
       case "weekly":
         setTimeframeInDays(84); // Last 12 weeks
         break;
@@ -359,8 +404,14 @@ const Timechart = ({ selectedDisaster }) => {
           {/* Line Chart */}
           {chartData && <Line data={chartData} options={options} />}
 
-          {/* Buttons to toggle between time views - removed daily */}
+          {/* Buttons to toggle between time views */}
           <div className="view-toggle-buttons">
+            {/*<button*/}
+            {/*    className={`toggle-button ${view === "daily" ? "active" : ""}`}*/}
+            {/*    onClick={() => handleViewToggle("daily")}*/}
+            {/*>*/}
+            {/*  Daily*/}
+            {/*</button>*/}
             <button
                 className={`toggle-button ${view === "weekly" ? "active" : ""}`}
                 onClick={() => handleViewToggle("weekly")}

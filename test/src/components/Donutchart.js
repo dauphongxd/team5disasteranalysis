@@ -8,8 +8,8 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Disaster categories mapping for aggregating data
 const disasterCategoriesMapping = {
-  fire: ["wild fire", "bush fire", "forest fire", "wildfire", "bushfire", "forestfire"],
-  storm: ["storm", "blizzard", "cyclone", "dust storm", "hurricane", "tornado", "typhoon"],
+  fire: ["wild_fire", "bush_fire", "forest_fire"],
+  storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
   earthquake: ["earthquake"],
   tsunami: ["tsunami"],
   volcano: ["volcano"],

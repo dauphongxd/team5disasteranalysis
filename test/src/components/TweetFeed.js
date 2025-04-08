@@ -2,213 +2,171 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import api from "../services/api";
 import websocketService from "../services/websocket";
 
-// Hardcoded WebSocket URL for development
-const WEBSOCKET_URL = process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:5000';
+// Disaster categories mapping for proper filtering
+const disasterCategoriesMapping = {
+  fire: ["wild_fire", "bush_fire", "forest_fire"],
+  storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
+  earthquake: ["earthquake"],
+  tsunami: ["tsunami"],
+  volcano: ["volcano"],
+  flood: ["flood"],
+  landslide: ["landslide", "avalanche"],
+  other: ["haze", "meteor", "unknown"]
+};
+
+// Helper function to check if a post's disaster type matches the selected filter
+const checkDisasterTypeMatch = (postType, selectedType) => {
+  if (!postType) return selectedType === 'all' || selectedType === 'other';
+  if (selectedType === 'all') return true;
+  if (postType === selectedType) return true;
+  if (disasterCategoriesMapping[selectedType]) {
+    return disasterCategoriesMapping[selectedType].includes(postType);
+  }
+  return false;
+};
 
 function TweetFeed({ selectedDisaster }) {
+  // State variables
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [nextToken, setNextToken] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [connected, setConnected] = useState(false);
+
+  // Refs for preventing unnecessary renders and API calls
   const loaderRef = useRef(null);
   const POSTS_PER_PAGE = 20;
   const initialLoadComplete = useRef(false);
-  const preventAutoFetch = useRef(false);  // New ref to prevent auto-fetch
-  const selectedDisasterRef = useRef(selectedDisaster); // Reference to track changes
+  const selectedDisasterRef = useRef(selectedDisaster);
+  const isInitialMount = useRef(true);
+  const fetchingRef = useRef(false);
+  const nextTokenRef = useRef(null);
+  const currentOperationRef = useRef(null);
+  const tweetsRef = useRef(tweets);
+  const connectionAttemptedRef = useRef(false);
+  const renderCountRef = useRef(0);
 
-  // Debug logging for props
+  // Debugging render cycles
+  renderCountRef.current += 1;
+  console.log(`TweetFeed render #${renderCountRef.current}, selected disaster: ${selectedDisaster}`);
+
+  // Update refs when state changes
   useEffect(() => {
-    console.log("TweetFeed component received selectedDisaster:", selectedDisaster);
+    tweetsRef.current = tweets;
+  }, [tweets]);
+
+  // Update ref when selectedDisaster changes
+  useEffect(() => {
+    // Only reset state if disaster type actually changed
+    if (selectedDisasterRef.current !== selectedDisaster) {
+      console.log(`Disaster type changed from ${selectedDisasterRef.current} to ${selectedDisaster}`);
+      selectedDisasterRef.current = selectedDisaster;
+
+      // Clear tweets and pagination state when disaster type changes
+      if (!isInitialMount.current) {
+        setTweets([]);
+        setNextToken(null);
+        nextTokenRef.current = null;
+        setHasMore(true);
+
+        // Reset fetchingRef to allow new fetches
+        fetchingRef.current = false;
+      }
+    }
   }, [selectedDisaster]);
 
-  // Connect to WebSocket when component mounts - ONLY ONCE
-  useEffect(() => {
-    // Skip if already connected
-    if (connected) return;
+  // FETCH TWEETS FUNCTION - Stable reference that doesn't change
+  const fetchTweets = useCallback(async (isInitialLoad = false) => {
+    // Generate a unique operation ID to track this specific fetch
+    const operationId = Date.now();
+    currentOperationRef.current = operationId;
 
-    if (!WEBSOCKET_URL) {
-      console.error("WebSocket URL is not defined");
+    // Prevent concurrent fetches or fetches while unmounting
+    if (fetchingRef.current) {
+      console.log("Already fetching, ignoring request");
       return;
     }
 
-    const connectWebSocket = async () => {
-      try {
-        console.log("Attempting to connect to WebSocket:", WEBSOCKET_URL);
-        await websocketService.connect(WEBSOCKET_URL);
-        setConnected(true);
+    fetchingRef.current = true;
 
-        // Subscribe to the selected disaster type
-        websocketService.subscribeToDisasterType(selectedDisaster);
-        console.log("WebSocket connected and subscribed to:", selectedDisaster);
-      } catch (error) {
-        console.error("WebSocket connection failed:", error);
-        setConnected(false);
-        // Don't let WebSocket failure prevent initial data load
-      }
-    };
-
-    connectWebSocket();
-
-    // Cleanup: disconnect when component unmounts
-    return () => {
-      if (websocketService && typeof websocketService.disconnect === 'function') {
-        websocketService.disconnect();
-      }
-    };
-  }, []); // IMPORTANT: Empty dependency array - connect ONLY ONCE
-
-  // Subscribe to different disaster type when selection changes
-  useEffect(() => {
-    // Update the ref whenever selectedDisaster changes
-    selectedDisasterRef.current = selectedDisaster;
-
-    if (connected && websocketService && typeof websocketService.subscribeToDisasterType === 'function') {
-      websocketService.subscribeToDisasterType(selectedDisaster);
-      console.log("Subscribed to disaster type:", selectedDisaster);
-    }
-  }, [selectedDisaster, connected]);
-
-  // Listen for new posts from WebSocket
-  useEffect(() => {
-    // Skip if not connected
-    if (!connected || !websocketService || typeof websocketService.addEventListener !== 'function') {
-      return () => {};
-    }
-
-    // Handler for new posts
-    const handleNewPost = (post) => {
-      console.log("Received new post via WebSocket:", post);
-
-      // Filter by selected disaster if needed
-      if (selectedDisasterRef.current !== 'all' && post.disaster_type !== selectedDisasterRef.current) {
-        console.log("Filtering out post of type:", post.disaster_type);
-        return;
-      }
-
-      // Format the post for display
-      const formattedPost = {
-        uri: post.post_id,
-        handle: post.handle || post.username || '',
-        display_name: post.display_name || 'Unknown User',
-        text: post.text || post.original_text || '',
-        timestamp: post.timestamp || post.created_at || new Date().toISOString(),
-        avatar: post.avatar || post.avatar_url || '/default-avatar.jpg',
-        disaster_type: post.disaster_type || 'unknown',
-        confidence_score: post.confidence_score || 0,
-        is_disaster: true
-      };
-
-      // Add the new post to the beginning of the list
-      setTweets(prevTweets => {
-        // Check if this post already exists in our list
-        const exists = prevTweets.some(tweet => tweet.uri === formattedPost.uri);
-        if (exists) {
-          console.log("Post already exists, not adding:", formattedPost.uri);
-          return prevTweets; // No change needed
-        }
-
-        console.log("Adding new post to tweets list:", formattedPost.uri);
-        // Add to the beginning of the array (newest first)
-        return [formattedPost, ...prevTweets];
-      });
-    };
-
-    // Register event handler for new posts
-    console.log("Setting up WebSocket event listener for new posts");
-    const unsubscribe = websocketService.addEventListener('new_post', handleNewPost);
-
-    // Clean up event handler when component unmounts
-    return unsubscribe;
-  }, [connected]);
-
-  // Fetch initial tweets
-  const fetchTweets = useCallback(async (isInitialLoad = false, loadMore = false) => {
     try {
       if (isInitialLoad) {
         setLoading(true);
-        // Only reset state when we're explicitly loading the first page
+        // Reset state for initial load
         setTweets([]);
         setNextToken(null);
+        nextTokenRef.current = null;
         setHasMore(true);
-        preventAutoFetch.current = false; // Enable fetching for the initial load
+      } else if (!hasMore) {
+        // If there are no more tweets to load, exit early
+        fetchingRef.current = false;
+        return;
       }
 
       setError(null);
 
-      // Use the api module to fetch posts with selected disaster type
-      const token = isInitialLoad ? null : nextToken;
+      const token = isInitialLoad ? null : nextTokenRef.current;
       console.log(`Fetching tweets: isInitialLoad=${isInitialLoad}, token=${token}, type=${selectedDisasterRef.current}`);
-      const data = await api.getPosts(selectedDisasterRef.current, POSTS_PER_PAGE, token);
 
-      console.log("API response:", data);
+      // Determine if we need to query by super-category
+      const isSuperCategory = Object.keys(disasterCategoriesMapping).includes(selectedDisasterRef.current);
+      const apiType = isSuperCategory ? 'all' : selectedDisasterRef.current;
 
-      // Check if we have valid data
+      // Force fresh data only on initial load
+      const data = await api.getPosts(apiType, POSTS_PER_PAGE, token, isInitialLoad);
+
+      // Check if this operation is still current (not superseded)
+      if (currentOperationRef.current !== operationId) {
+        console.log("Operation was superseded, discarding results");
+        fetchingRef.current = false;
+        return;
+      }
+
       if (!data || !data.posts || !Array.isArray(data.posts)) {
-        console.error("Invalid data format returned from API:", data);
         throw new Error("Invalid data format returned from API");
       }
 
-      if (data.posts.length === 0) {
-        console.log("No posts returned from API");
+      // Filter by disaster type if using a super-category
+      let filteredPosts = data.posts;
+      if (isSuperCategory && selectedDisasterRef.current !== 'all') {
+        const subcategories = disasterCategoriesMapping[selectedDisasterRef.current] || [];
+        filteredPosts = data.posts.filter(post => subcategories.includes(post.disaster_type));
       }
 
-      // Transform data into the expected format for display
-      const formattedTweets = data.posts.map(post => {
-        // Extract handle from username field or use handle directly
-        let userHandle = '';
-        if (post.handle) {
-          userHandle = post.handle;
-        } else if (post.username) {
-          userHandle = post.username;
-        } else if (post.user_id) {
-          // Fallback to user_id if available
-          userHandle = post.user_id.toString().substring(0, 10) + '...';
-        }
+      // Format posts for display
+      const formattedTweets = filteredPosts.map(post => ({
+        uri: post.post_id,
+        handle: post.handle || post.username || (post.user_id ? String(post.user_id).substring(0, 10) + '...' : ''),
+        display_name: post.display_name?.trim() || post.handle || "Unknown User",
+        text: post.original_text || post.clean_text || "",
+        timestamp: post.created_at,
+        avatar: post.avatar_url || "/default-avatar.jpg",
+        disaster_type: post.disaster_type,
+        confidence_score: post.confidence_score,
+        is_disaster: true
+      }));
 
-        // Determine display name
-        let userName = "Unknown User";
-        if (post.display_name && post.display_name.trim()) {
-          userName = post.display_name.trim();
-        } else if (post.handle) {
-          // If no display name, use handle as a fallback but don't repeat in both places
-          userName = post.handle;
-        }
-
-        // Ensure avatar URL is usable
-        let avatarUrl = "/default-avatar.jpg";
-        if (post.avatar_url) {
-          avatarUrl = post.avatar_url;
-        }
-
-        return {
-          uri: post.post_id,
-          handle: userHandle,
-          display_name: userName,
-          text: post.original_text || post.clean_text || "",
-          timestamp: post.created_at,
-          avatar: avatarUrl,
-          disaster_type: post.disaster_type,
-          confidence_score: post.confidence_score,
-          is_disaster: true
-        };
-      });
-
-      // If we're loading more (with nextToken), append to existing tweets
-      // Otherwise, replace the tweets array
+      // Update state safely
       if (token && !isInitialLoad) {
-        setTweets(prevTweets => [...prevTweets, ...formattedTweets]);
+        setTweets(prevTweets => {
+          // Check for duplicates before adding
+          const existingIds = new Set(prevTweets.map(t => t.uri));
+          const newTweets = formattedTweets.filter(t => !existingIds.has(t.uri));
+          return [...prevTweets, ...newTweets];
+        });
       } else {
         setTweets(formattedTweets);
       }
 
-      // Save next token for pagination if available
+      // Update pagination state
       if (data.next_token) {
         setNextToken(data.next_token);
+        nextTokenRef.current = data.next_token;
         setHasMore(true);
       } else {
-        setNextToken(null); // No more pages
+        setNextToken(null);
+        nextTokenRef.current = null;
         setHasMore(false);
       }
 
@@ -220,76 +178,160 @@ function TweetFeed({ selectedDisaster }) {
       setError(error.message || "Failed to load tweets. Please try again.");
       setLoading(false);
       setHasMore(false);
-
-      // If the initial load fails, we should still mark it as complete
-      // but allow future attempts to load data
       initialLoadComplete.current = true;
+    } finally {
+      // Ensure we release the lock
+      fetchingRef.current = false;
     }
-  }, [nextToken, selectedDisaster]); // Add selectedDisaster to dependencies
+  }, []); // Empty dependency array for stability
 
-  // Dedicated effect for initial data loading when component mounts
+  // Connect to WebSocket once on component mount
   useEffect(() => {
-    console.log("Component mounted - triggering initial data load");
-    fetchTweets(true);
-    // We don't need any dependencies here - this should run exactly once when mounted
-  }, []); // Empty dependency array means this runs once on mount
+    if (connectionAttemptedRef.current) return;
+    connectionAttemptedRef.current = true;
 
-  // Effect for handling disaster type changes
+    const connectToWebSocket = async () => {
+      try {
+        if (!connected && websocketService) {
+          await websocketService.connect(process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:8000');
+          setConnected(true);
+          websocketService.subscribeToDisasterType(selectedDisasterRef.current);
+        }
+      } catch (error) {
+        console.error("WebSocket connection error:", error);
+        setConnected(false);
+      }
+    };
+
+    connectToWebSocket();
+
+    // Clean up on unmount
+    return () => {
+      // Don't actually disconnect - let the WebSocket service handle connections
+      // Just mark as disconnected in this component
+      setConnected(false);
+    };
+  }, []); // Empty dependency array - run once only
+
+  // Update WebSocket subscription when disaster type changes
   useEffect(() => {
-    // Skip first render (this is handled by the mount effect above)
-    if (!initialLoadComplete.current) return;
+    if (connected && websocketService && websocketService.isSocketConnected()) {
+      websocketService.subscribeToDisasterType(selectedDisaster);
+    }
+  }, [selectedDisaster, connected]);
 
-    console.log("Disaster type changed:", selectedDisaster);
+  // Initial data load - only on mount
+  useEffect(() => {
+    // Set a small delay to avoid any race conditions with parent component renders
+    const timer = setTimeout(() => {
+      console.log("Initial data load");
+      fetchTweets(true);
+      isInitialMount.current = false;
+    }, 100);
 
-    // Skip if we're in the middle of loading
-    if (loading) {
-      console.log("Already loading, skipping fetch for type change");
-      return;
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array - run once on mount
+
+  // Handle disaster type changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+
+    // Small delay to avoid race conditions
+    const timer = setTimeout(() => {
+      // If we're already fetching, don't start another fetch
+      if (fetchingRef.current) return;
+
+      console.log("Fetching tweets for disaster type:", selectedDisaster);
+      fetchTweets(true);
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [selectedDisaster, fetchTweets]);
+
+  // Set up WebSocket event listeners
+  useEffect(() => {
+    if (!connected || !websocketService) {
+      return () => {};
     }
 
-    // Refresh the data when disaster type changes
-    if (selectedDisasterRef.current !== selectedDisaster) {
-      console.log(`Disaster type changed from ${selectedDisasterRef.current} to ${selectedDisaster}`);
-      fetchTweets(true); // Reset and load first page only
-    }
-  }, [selectedDisaster, loading, fetchTweets]);
+    // Handler for new posts from WebSocket
+    const handleNewPost = (post) => {
+      if (!post) return;
 
-  // Explicit "load more" handler for infinite scrolling - manually triggered only
+      console.log("Received new post via WebSocket:", post);
+
+      // Check if this post matches our current filter
+      if (!checkDisasterTypeMatch(post.disaster_type, selectedDisasterRef.current)) {
+        console.log(`Filtering out post of type: ${post.disaster_type}`);
+        return;
+      }
+
+      // Format post for display
+      const formattedPost = {
+        uri: post.post_id,
+        handle: post.handle || post.username || '',
+        display_name: post.display_name || 'Unknown User',
+        text: post.text || post.original_text || '',
+        timestamp: post.timestamp || post.created_at || new Date().toISOString(),
+        avatar: post.avatar || post.avatar_url || '/default-avatar.jpg',
+        disaster_type: post.disaster_type || 'unknown',
+        confidence_score: post.confidence_score || 0,
+        is_disaster: true,
+        isNew: true // Flag as new for animation
+      };
+
+      // Add to tweets if not a duplicate
+      setTweets(prevTweets => {
+        if (prevTweets.some(tweet => tweet.uri === formattedPost.uri)) {
+          return prevTweets; // No change if already exists
+        }
+        return [formattedPost, ...prevTweets]; // Add to beginning
+      });
+    };
+
+    // Register listener
+    const unsubscribe = websocketService.addEventListener('new_post', handleNewPost);
+    return unsubscribe;
+  }, [connected]);
+
+  // Load more tweets handler for infinite scrolling
   const handleLoadMore = useCallback(() => {
-    if (!loading && hasMore) {
-      console.log("Manually loading more tweets");
-      fetchTweets(false, true);
-    }
-  }, [fetchTweets, loading, hasMore]);
+    if (loading || !hasMore || fetchingRef.current) return;
+    fetchTweets(false);
+  }, [loading, hasMore, fetchTweets]);
 
   // Set up intersection observer for infinite scrolling
   useEffect(() => {
-    // If we're already loading or there are no more tweets, don't do anything
-    if (loading || !hasMore || !loaderRef.current || !initialLoadComplete.current) return;
+    if (!loaderRef.current || loading || !hasMore || !initialLoadComplete.current) return;
 
-    // Keep a reference to the current loader element
-    const currentLoaderRef = loaderRef.current;
-
+    const currentLoader = loaderRef.current;
     const observer = new IntersectionObserver(
         entries => {
-          // If the loader element is visible and we're not already loading
-          if (entries[0].isIntersecting && hasMore && !loading) {
-            handleLoadMore(); // Use the explicit load more handler
+          if (entries[0].isIntersecting && hasMore && !loading && !fetchingRef.current) {
+            handleLoadMore();
           }
         },
-        { threshold: 0.5 } // Fire when 50% of the element is visible
+        { threshold: 0.5 }
     );
 
-    // Start observing the loader element
-    observer.observe(currentLoaderRef);
-
-    // Clean up the observer when component unmounts or dependencies change
-    return () => {
-      observer.unobserve(currentLoaderRef);
-    };
+    observer.observe(currentLoader);
+    return () => observer.unobserve(currentLoader);
   }, [loading, hasMore, handleLoadMore]);
 
-  // If loading and no tweets yet, show a loading indicator
+  // Remove "new" flag after animation completes
+  useEffect(() => {
+    const newTweets = tweets.filter(tweet => tweet.isNew);
+    if (newTweets.length > 0) {
+      const timer = setTimeout(() => {
+        setTweets(prevTweets =>
+            prevTweets.map(tweet => tweet.isNew ? { ...tweet, isNew: false } : tweet)
+        );
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [tweets]);
+
+  // Render loading state
   if (loading && tweets.length === 0) {
     return (
         <div className="tweet-section">
@@ -303,7 +345,7 @@ function TweetFeed({ selectedDisaster }) {
     );
   }
 
-  // If there's an error and no tweets, show error message
+  // Render error state
   if (error && tweets.length === 0) {
     return (
         <div className="tweet-section">
@@ -312,15 +354,29 @@ function TweetFeed({ selectedDisaster }) {
           </div>
           <div className="tweet-feed">
             <div className="error-message">Error: {error}</div>
+            <button onClick={() => fetchTweets(true)} className="retry-button">Retry</button>
           </div>
         </div>
     );
   }
 
+  // Render main content
   return (
       <div className="tweet-section">
         <div className="map-header">
           <h3>Disaster Tweets</h3>
+          {/*<div className="tweet-controls">*/}
+          {/*  <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>*/}
+          {/*    {connected ? 'Live Updates' : 'Offline'}*/}
+          {/*  </div>*/}
+          {/*  <button*/}
+          {/*      className="refresh-button"*/}
+          {/*      onClick={() => fetchTweets(true)}*/}
+          {/*      disabled={loading || fetchingRef.current}*/}
+          {/*  >*/}
+          {/*    Refresh*/}
+          {/*  </button>*/}
+          {/*</div>*/}
         </div>
         <div className="tweet-feed" id="tweet-feed">
           {tweets.length === 0 ? (
@@ -330,7 +386,10 @@ function TweetFeed({ selectedDisaster }) {
           ) : (
               <div className="tweet-content-wrapper">
                 {tweets.map((tweet) => (
-                    <div className="tweet-container" key={tweet.uri}>
+                    <div
+                        className={`tweet-container ${tweet.isNew ? 'new-tweet' : ''}`}
+                        key={tweet.uri}
+                    >
                       <div className="tweet-header">
                         <img
                             src={tweet.avatar}
@@ -378,4 +437,4 @@ function TweetFeed({ selectedDisaster }) {
   );
 }
 
-export default TweetFeed;
+export default React.memo(TweetFeed);

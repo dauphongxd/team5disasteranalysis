@@ -1,4 +1,50 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// api.js with caching
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+// Cache mechanism
+const apiCache = {
+    cache: new Map(),
+    pendingRequests: new Map(),
+
+    // Cache expiration in milliseconds (5 seconds)
+    CACHE_EXPIRATION: 5000,
+
+    // Get from cache
+    get(key) {
+        const cached = this.cache.get(key);
+        if (!cached) return null;
+
+        // Check if cache is expired
+        if (Date.now() - cached.timestamp > this.CACHE_EXPIRATION) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return cached.data;
+    },
+
+    // Set cache
+    set(key, data) {
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    },
+
+    // Get pending request
+    getPendingRequest(key) {
+        return this.pendingRequests.get(key);
+    },
+
+    // Set pending request
+    setPendingRequest(key, promise) {
+        this.pendingRequests.set(key, promise);
+        promise.finally(() => {
+            this.pendingRequests.delete(key);
+        });
+        return promise;
+    }
+};
 
 // Mock data for fallback when API is unavailable
 const MOCK_DATA = {
@@ -42,122 +88,157 @@ const MOCK_DATA = {
     ]
 };
 
-// Reusable fetch function with error handling and response transformation
-async function fetchFromAPI(endpoint, options = {}) {
-    try {
-        console.log(`Fetching from: ${API_BASE_URL}${endpoint}`);
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+// Reusable fetch function with error handling, response transformation, and caching
+async function fetchFromAPI(endpoint, options = {}, forceRefresh = false) {
+    // Generate cache key from endpoint and options
+    const cacheKey = endpoint + JSON.stringify(options);
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+    // If not forced refresh, check cache first
+    if (!forceRefresh) {
+        // Check for cached data
+        const cachedData = apiCache.get(cacheKey);
+        if (cachedData) {
+            console.log(`Using cached data for: ${endpoint}`);
+            return cachedData;
         }
 
-        const data = await response.json();
-
-        // Special handling for posts endpoint to ensure user data is properly formatted
-        if (endpoint.includes('/api/posts') && data.posts) {
-            data.posts = data.posts.map(post => {
-                // Clean up the display_name if it has quotes
-                if (post.display_name && typeof post.display_name === 'string') {
-                    post.display_name = post.display_name.replace(/^["'](.*)["']$/, '$1').trim();
-                }
-
-                // Make sure handle exists and is properly formatted
-                if (!post.handle && post.username) {
-                    post.handle = post.username;
-                }
-
-                return post;
-            });
+        // Check for pending request
+        const pendingRequest = apiCache.getPendingRequest(cacheKey);
+        if (pendingRequest) {
+            console.log(`Reusing pending request for: ${endpoint}`);
+            return pendingRequest;
         }
+    }
 
-        return data;
-    } catch (error) {
-        console.error(`API request failed: ${error.message}`);
-        console.warn(`Using mock data fallback for: ${endpoint}`);
+    // Create the fetch promise
+    const fetchPromise = (async () => {
+        try {
+            console.log(`Fetching from: ${API_BASE_URL}${endpoint}`);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
 
-        // Return appropriate mock data based on the endpoint
-        if (endpoint.includes('/api/posts')) {
-            console.log("Returning mock posts data");
-            let mockResult = { ...MOCK_DATA };
-
-            // Filter mock data if a disaster type is specified
-            const typeParam = endpoint.match(/type=([^&]+)/);
-            if (typeParam && typeParam[1] && typeParam[1] !== 'all') {
-                const type = typeParam[1];
-                console.log(`Filtering mock data for disaster type: ${type}`);
-                mockResult.posts = mockResult.posts.filter(post =>
-                    post.disaster_type.toLowerCase() === type.toLowerCase()
-                );
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
             }
 
-            return mockResult;
-        } else if (endpoint.includes('/api/disaster-types')) {
-            return ['wild fire', 'hurricane', 'earthquake', 'flood', 'tornado'];
-        } else if (endpoint.includes('/api/chart/disaster-distribution')) {
-            return {
-                data: [
-                    { type: 'wild fire', count: 35, percentage: 35.0 },
-                    { type: 'hurricane', count: 25, percentage: 25.0 },
-                    { type: 'earthquake', count: 20, percentage: 20.0 },
-                    { type: 'flood', count: 10, percentage: 10.0 },
-                    { type: 'tornado', count: 10, percentage: 10.0 }
-                ],
-                total_count: 100
-            };
-        } else if (endpoint.includes('/api/chart/disaster-timeline')) {
-            return {
-                interval: 'daily',
-                labels: ['2023-08-01', '2023-08-02', '2023-08-03', '2023-08-04', '2023-08-05'],
-                datasets: [
-                    {
-                        label: 'wild fire',
-                        data: [5, 8, 12, 10, 7]
-                    },
-                    {
-                        label: 'hurricane',
-                        data: [3, 5, 8, 7, 2]
-                    }
-                ]
-            };
-        }
+            const data = await response.json();
 
-        // Generic fallback
-        return { error: error.message };
-    }
+            // Special handling for posts endpoint to ensure user data is properly formatted
+            if (endpoint.includes('/api/posts') && data.posts) {
+                data.posts = data.posts.map(post => {
+                    // Clean up the display_name if it has quotes
+                    if (post.display_name && typeof post.display_name === 'string') {
+                        post.display_name = post.display_name.replace(/^["'](.*)["']$/, '$1').trim();
+                    }
+
+                    // Make sure handle exists and is properly formatted
+                    if (!post.handle && post.username) {
+                        post.handle = post.username;
+                    }
+
+                    return post;
+                });
+            }
+
+            // Cache the result
+            apiCache.set(cacheKey, data);
+
+            return data;
+        } catch (error) {
+            console.error(`API request failed: ${error.message}`);
+            console.warn(`Using mock data fallback for: ${endpoint}`);
+
+            // Return appropriate mock data based on the endpoint
+            if (endpoint.includes('/api/posts')) {
+                console.log("Returning mock posts data");
+                let mockResult = { ...MOCK_DATA };
+
+                // Filter mock data if a disaster type is specified
+                const typeParam = endpoint.match(/type=([^&]+)/);
+                if (typeParam && typeParam[1] && typeParam[1] !== 'all') {
+                    const type = typeParam[1];
+                    console.log(`Filtering mock data for disaster type: ${type}`);
+                    mockResult.posts = mockResult.posts.filter(post =>
+                        post.disaster_type.toLowerCase() === type.toLowerCase()
+                    );
+                }
+
+                return mockResult;
+            } else if (endpoint.includes('/api/disaster-types')) {
+                return ['wild fire', 'hurricane', 'earthquake', 'flood', 'tornado'];
+            } else if (endpoint.includes('/api/chart/disaster-distribution')) {
+                return {
+                    data: [
+                        { type: 'wild fire', count: 35, percentage: 35.0 },
+                        { type: 'hurricane', count: 25, percentage: 25.0 },
+                        { type: 'earthquake', count: 20, percentage: 20.0 },
+                        { type: 'flood', count: 10, percentage: 10.0 },
+                        { type: 'tornado', count: 10, percentage: 10.0 }
+                    ],
+                    total_count: 100
+                };
+            } else if (endpoint.includes('/api/chart/disaster-timeline')) {
+                return {
+                    interval: 'daily',
+                    labels: ['2023-08-01', '2023-08-02', '2023-08-03', '2023-08-04', '2023-08-05'],
+                    datasets: [
+                        {
+                            label: 'wild fire',
+                            data: [5, 8, 12, 10, 7]
+                        },
+                        {
+                            label: 'hurricane',
+                            data: [3, 5, 8, 7, 2]
+                        }
+                    ]
+                };
+            }
+
+            // Generic fallback
+            return { error: error.message };
+        }
+    })();
+
+    // Register the pending request
+    return apiCache.setPendingRequest(cacheKey, fetchPromise);
 }
 
 // API methods corresponding to your Flask endpoints
 export const api = {
     // Posts and tweets
-    getPosts: async (type = 'all', limit = 20, nextToken = null) => {
+    getPosts: async (type = 'all', limit = 20, nextToken = null, forceRefresh = false) => {
         let url = `/api/posts?type=${type}&limit=${limit}`;
         if (nextToken) url += `&next_token=${encodeURIComponent(nextToken)}`;
-        return fetchFromAPI(url);
+        return fetchFromAPI(url, {}, forceRefresh);
     },
 
     // Disaster data
-    getDisasterSummary: async () => {
-        return fetchFromAPI('/api/disaster-summary');
+    getDisasterSummary: async (forceRefresh = false) => {
+        return fetchFromAPI('/api/disaster-summary', {}, forceRefresh);
     },
 
-    getDisasterTypes: async () => {
-        return fetchFromAPI('/api/disaster-types');
+    getDisasterTypes: async (forceRefresh = false) => {
+        return fetchFromAPI('/api/disaster-types', {}, forceRefresh);
     },
 
     // Chart data
-    getDisasterDistribution: async () => {
-        return fetchFromAPI('/api/chart/disaster-distribution');
+    getDisasterDistribution: async (forceRefresh = false) => {
+        return fetchFromAPI('/api/chart/disaster-distribution', {}, forceRefresh);
     },
 
-    getDisasterTimeline: async (interval = 'daily', days = 30, type = null) => {
+    getDisasterTimeline: async (interval = 'daily', days = 30, type = null, forceRefresh = false) => {
         let url = `/api/chart/disaster-timeline?interval=${interval}&days=${days}`;
         if (type && type !== 'all') url += `&type=${type}`;
-        return fetchFromAPI(url);
+        return fetchFromAPI(url, {}, forceRefresh);
     },
 
-    getPostVolumeMetrics: async () => {
-        return fetchFromAPI('/api/chart/post-volume-metrics');
+    getPostVolumeMetrics: async (forceRefresh = false) => {
+        return fetchFromAPI('/api/chart/post-volume-metrics', {}, forceRefresh);
+    },
+
+    // Method to clear cache
+    clearCache: () => {
+        apiCache.cache.clear();
+        console.log("API cache cleared");
     }
 };
 
