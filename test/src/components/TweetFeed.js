@@ -14,13 +14,28 @@ const disasterCategoriesMapping = {
   other: ["haze", "meteor", "unknown"]
 };
 
+// Helper function to normalize disaster types (handles both underscore and space formats)
+const normalizeDisasterType = (type) => {
+  if (!type) return '';
+  return String(type).toLowerCase();
+};
+
 // Helper function to check if a post's disaster type matches the selected filter
 const checkDisasterTypeMatch = (postType, selectedType) => {
   if (!postType) return selectedType === 'all' || selectedType === 'other';
   if (selectedType === 'all') return true;
-  if (postType === selectedType) return true;
+  if (normalizeDisasterType(postType) === normalizeDisasterType(selectedType)) return true;
+
   if (disasterCategoriesMapping[selectedType]) {
-    return disasterCategoriesMapping[selectedType].includes(postType);
+    // Normalize the post type for comparison
+    const normalizedPostType = normalizeDisasterType(postType);
+
+    // Check if any subcategory matches (after normalization)
+    return disasterCategoriesMapping[selectedType].some(subType =>
+        normalizeDisasterType(subType) === normalizedPostType ||
+        normalizeDisasterType(subType).replace(/_/g, ' ') === normalizedPostType ||
+        normalizedPostType.replace(/_/g, ' ') === normalizeDisasterType(subType)
+    );
   }
   return false;
 };
@@ -131,7 +146,17 @@ function TweetFeed({ selectedDisaster }) {
       let filteredPosts = data.posts;
       if (isSuperCategory && selectedDisasterRef.current !== 'all') {
         const subcategories = disasterCategoriesMapping[selectedDisasterRef.current] || [];
-        filteredPosts = data.posts.filter(post => subcategories.includes(post.disaster_type));
+        filteredPosts = data.posts.filter(post => {
+          // Use our enhanced matching function for more robust filtering
+          return subcategories.some(subType => {
+            const postDisasterType = normalizeDisasterType(post.disaster_type);
+            const subcategoryType = normalizeDisasterType(subType);
+
+            return postDisasterType === subcategoryType ||
+                postDisasterType === subcategoryType.replace(/_/g, ' ') ||
+                postDisasterType.replace(/_/g, ' ') === subcategoryType;
+          });
+        });
       }
 
       // Format posts for display

@@ -6,7 +6,7 @@ import api from "../services/api";
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// Disaster categories mapping for aggregating data
+// Disaster categories mapping for aggregating data - using underscores for consistency
 const disasterCategoriesMapping = {
   fire: ["wild_fire", "bush_fire", "forest_fire"],
   storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
@@ -28,6 +28,12 @@ const superCategoryNames = {
   flood: "Flood",
   landslide: "Landslide",
   other: "Other"
+};
+
+// Helper function to normalize disaster types
+const normalizeDisasterType = (type) => {
+  if (!type) return '';
+  return String(type).toLowerCase().replace(/ /g, '_');
 };
 
 const DonutChart = () => {
@@ -66,14 +72,30 @@ const DonutChart = () => {
 
       // Process each data item
       apiData.data.forEach(item => {
-        const type = item.type.toLowerCase();
+        // Normalize the type for consistent comparison
+        const normalizedType = normalizeDisasterType(item.type);
         const count = item.count || 0;
         totalCount += count;
 
         // Find which super category this item belongs to
         let foundSuperCategory = false;
         for (const [superCategory, subcategories] of Object.entries(disasterCategoriesMapping)) {
-          if (superCategory === type || subcategories.includes(type)) {
+          // Check if this is a direct match with a super category
+          if (superCategory === normalizedType) {
+            superCategoryCounts[superCategory] += count;
+            foundSuperCategory = true;
+            break;
+          }
+
+          // Check if it matches any subcategory (with normalization)
+          const matchingSubcategory = subcategories.some(subType => {
+            const normalizedSubType = normalizeDisasterType(subType);
+            return normalizedType === normalizedSubType ||
+                normalizedType === normalizedSubType.replace(/_/g, ' ') ||
+                normalizedType.replace(/_/g, ' ') === normalizedSubType;
+          });
+
+          if (matchingSubcategory) {
             superCategoryCounts[superCategory] += count;
             foundSuperCategory = true;
             break;

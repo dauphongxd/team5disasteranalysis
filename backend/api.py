@@ -11,6 +11,7 @@ from boto3.dynamodb.conditions import Key, Attr
 import logging
 from flask_socketio import SocketIO, emit
 import time
+from langdetect import detect, LangDetectException
 
 # Set up logging
 logging.basicConfig(
@@ -191,16 +192,17 @@ def get_posts():
         disaster_type = request.args.get('type', 'all')
         limit = int(request.args.get('limit', 50))
         next_token = request.args.get('next_token')  # For pagination
+        language = request.args.get('language', 'en')  # Default to English
 
-        # Generate cache key
-        cache_key = f"posts_{disaster_type}_{limit}_{next_token}"
+        # Generate cache key including language
+        cache_key = f"posts_{disaster_type}_{limit}_{next_token}_{language}"
 
         # Check cache first
         cached_response = get_cached_response(cache_key)
         if cached_response:
             return cached_response
 
-        logger.info(f"Getting posts with type={disaster_type}, limit={limit}")
+        logger.info(f"Getting posts with type={disaster_type}, limit={limit}, language={language}")
 
         dynamodb = get_dynamodb()
         posts_table = dynamodb.Table(POSTS_TABLE)
@@ -236,31 +238,115 @@ def get_posts():
         # Execute the query or scan
         response = operation(**params)
 
-        # Process posts
+        # Process posts with language filtering
         posts = []
         for item in response.get('Items', []):
-            # Transform DynamoDB item to match expected format
-            post = {
-                'post_id': item.get('post_id'),
-                'original_text': item.get('original_text'),
-                'created_at': item.get('created_at'),
-                'disaster_type': item.get('disaster_type'),
-                'confidence_score': item.get('confidence_score'),
-                'username': item.get('handle'),  # Using handle as username
-                'handle': item.get('handle'),  # Also include handle explicitly
-                'user_id': item.get('user_id'),
-                'display_name': item.get('display_name'),  # Add display_name
-                'avatar_url': item.get('avatar_url'),  # Add avatar_url
-                'location_name': item.get('location_name', ''),
-                'media': item.get('media_urls', [])
-            }
-            posts.append(post)
+            try:
+                # Skip items without text
+                if 'original_text' not in item or not item['original_text']:
+                    continue
+
+                text = item['original_text']
+
+                # Skip very short texts - they're hard to detect language accurately
+                if len(text.strip()) < 5:
+                    continue
+
+                # Check language if filtering is enabled
+                if language != 'all':
+                    try:
+                        detected_lang = detect(text)
+                        # Skip if language doesn't match
+                        if detected_lang != language:
+                            continue
+                    except LangDetectException:
+                        # If language detection fails, include the post if it's in a fallback mode
+                        # You could choose to exclude these posts instead
+                        logger.warning(f"Language detection failed for post: {item.get('post_id')}")
+                        continue
+
+                # Transform DynamoDB item to match expected format
+                post = {
+                    'post_id': item.get('post_id'),
+                    'original_text': item.get('original_text'),
+                    'created_at': item.get('created_at'),
+                    'disaster_type': item.get('disaster_type'),
+                    'confidence_score': item.get('confidence_score'),
+                    'username': item.get('handle'),  # Using handle as username
+                    'handle': item.get('handle'),  # Also include handle explicitly
+                    'user_id': item.get('user_id'),
+                    'display_name': item.get('display_name'),  # Add display_name
+                    'avatar_url': item.get('avatar_url'),  # Add avatar_url
+                    'location_name': item.get('location_name', ''),
+                    'media': item.get('media_urls', [])
+                }
+                posts.append(post)
+            except Exception as e:
+                logger.error(f"Error processing post {item.get('post_id')}: {str(e)}")
+                # Continue with next post instead of failing completely
+                continue
+
+        # If we didn't reach our limit, and we have a LastEvaluatedKey, we need to get more posts
+        # This handles the case where language filtering reduced our results below the limit
+        original_last_key = response.get('LastEvaluatedKey')
+        while len(posts) < limit and 'LastEvaluatedKey' in response:
+            params['ExclusiveStartKey'] = response['LastEvaluatedKey']
+            response = operation(**params)
+
+            for item in response.get('Items', []):
+                try:
+                    if 'original_text' not in item or not item['original_text']:
+                        continue
+
+                    text = item['original_text']
+
+                    if len(text.strip()) < 5:
+                        continue
+
+                    if language != 'all':
+                        try:
+                            detected_lang = detect(text)
+                            if detected_lang != language:
+                                continue
+                        except LangDetectException:
+                            continue
+
+                    post = {
+                        'post_id': item.get('post_id'),
+                        'original_text': item.get('original_text'),
+                        'created_at': item.get('created_at'),
+                        'disaster_type': item.get('disaster_type'),
+                        'confidence_score': item.get('confidence_score'),
+                        'username': item.get('handle'),
+                        'handle': item.get('handle'),
+                        'user_id': item.get('user_id'),
+                        'display_name': item.get('display_name'),
+                        'avatar_url': item.get('avatar_url'),
+                        'location_name': item.get('location_name', ''),
+                        'media': item.get('media_urls', [])
+                    }
+                    posts.append(post)
+
+                    # Stop if we've reached our limit
+                    if len(posts) >= limit:
+                        break
+                except Exception as e:
+                    logger.error(f"Error processing post: {e}")
+                    continue
+
+            # Stop if we don't have more pages
+            if 'LastEvaluatedKey' not in response:
+                break
 
         # Build the response with pagination support
         result = {'posts': posts}
 
+        # Use the last evaluated key from the most recent query
+        # Or use the original last key if we've exhausted all results
         if 'LastEvaluatedKey' in response:
             result['next_token'] = json.dumps(response['LastEvaluatedKey'])
+        elif original_last_key and len(posts) >= limit:
+            result['next_token'] = json.dumps(original_last_key)
 
         # Create the API response
         api_response = app.response_class(

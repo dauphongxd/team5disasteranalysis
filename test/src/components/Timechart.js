@@ -47,6 +47,12 @@ const superCategoryNames = {
   other: "Other"
 };
 
+// Helper function to normalize disaster types (handles both underscore and space formats)
+const normalizeDisasterType = (type) => {
+  if (!type) return '';
+  return String(type).toLowerCase();
+};
+
 const Timechart = ({ selectedDisaster }) => {
   const [view, setView] = useState("weekly"); // Use API's interval property: "daily", "weekly", "monthly"
   const [timeframeInDays, setTimeframeInDays] = useState(84); // 12 weeks by default
@@ -88,8 +94,8 @@ const Timechart = ({ selectedDisaster }) => {
   const getSuperCategoryForType = (disasterType) => {
     if (!disasterType) return 'other';
 
-    // First, normalize the disaster type
-    const normalizedType = disasterType.toLowerCase();
+    // Normalize the disaster type
+    const normalizedType = normalizeDisasterType(disasterType);
 
     // Check if the type is a super category itself
     if (Object.keys(disasterCategoriesMapping).includes(normalizedType)) {
@@ -98,8 +104,15 @@ const Timechart = ({ selectedDisaster }) => {
 
     // Check each super category to see if it includes this type
     for (const [superCategory, subTypes] of Object.entries(disasterCategoriesMapping)) {
-      if (subTypes.includes(normalizedType)) {
-        return superCategory;
+      for (const subType of subTypes) {
+        const normalizedSubType = normalizeDisasterType(subType);
+
+        // Check for exact match or match after replacing underscores with spaces
+        if (normalizedType === normalizedSubType ||
+            normalizedType === normalizedSubType.replace(/_/g, ' ') ||
+            normalizedType.replace(/_/g, ' ') === normalizedSubType) {
+          return superCategory;
+        }
       }
     }
 

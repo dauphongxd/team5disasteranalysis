@@ -10,10 +10,11 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
     }, [selectedDisaster]);
 
     // Default disaster categories - will be used when API doesn't return specific types
+    // Updated to use underscores instead of spaces for consistency with backend
     const defaultCategories = [
         { id: "all", label: "All" },
-        { id: "fire", label: "Wildfire", includes: ["wild fire", "bush fire", "forest fire"] },
-        { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust storm", "hurricane", "tornado", "typhoon"] },
+        { id: "fire", label: "Wildfire", includes: ["wild_fire", "bush_fire", "forest_fire"] },
+        { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"] },
         { id: "earthquake", label: "Earthquake", includes: ["earthquake"] },
         { id: "tsunami", label: "Tsunami", includes: ["tsunami"] },
         { id: "volcano", label: "Volcano", includes: ["volcano"] },
@@ -30,6 +31,12 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
         setSelectedDisaster(disasterType);
     };
 
+    // Helper function to normalize disaster types (handles both underscore and space formats)
+    const normalizeDisasterType = (type) => {
+        if (!type) return '';
+        return String(type).toLowerCase().replace(/ /g, '_');
+    };
+
     // Determine which categories to display based on available types
     const getCategoriesToDisplay = () => {
         // If no available types from API, use default categories
@@ -44,7 +51,13 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
 
             // For other categories, check if any of their included types are in availableTypes
             if (category.includes) {
-                return category.includes.some(type => availableTypes.includes(type));
+                return category.includes.some(type => {
+                    // Normalize both the type from our mapping and the available type
+                    const normalizedType = normalizeDisasterType(type);
+                    return availableTypes.some(availType =>
+                        normalizedType === normalizeDisasterType(availType)
+                    );
+                });
             }
 
             // If the category doesn't have includes, check if its ID matches any available types
