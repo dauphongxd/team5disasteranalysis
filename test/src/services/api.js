@@ -222,7 +222,14 @@ export const api = {
 
     // Chart data
     getDisasterDistribution: async (forceRefresh = false) => {
+        // Original endpoint - returns all-time data
         return fetchFromAPI('/api/chart/disaster-distribution', {}, forceRefresh);
+    },
+
+    // New method specifically for the donut chart to get 6-month data
+    getDisasterDistributionMonths: async (months = 6, forceRefresh = false) => {
+        let url = `/api/chart/disaster-distribution-months?months=${months}`;
+        return fetchFromAPI(url, {}, forceRefresh);
     },
 
     getDisasterTimeline: async (interval = 'daily', days = 30, type = null, forceRefresh = false) => {

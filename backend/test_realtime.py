@@ -28,7 +28,7 @@ posts_table = dynamodb.Table(POSTS_TABLE)
 
 # Flask API endpoint for WebSocket notifications
 # This should match your Flask API's host and port
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 NOTIFICATION_ENDPOINT = f"{API_BASE_URL}/api/notify-new-post"
 
 # Sample disaster types

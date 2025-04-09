@@ -2149,5 +2149,23 @@ html {
     }
 }
 
+/* Add these styles to your styles.css file */
+
+.click-instructions {
+    text-align: center;
+    margin-top: 10px;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.click-instructions small {
+    color: #cccccc;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
 
 

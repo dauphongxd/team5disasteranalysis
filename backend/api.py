@@ -707,6 +707,96 @@ def get_post_volume_metrics():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/chart/disaster-distribution-months', methods=['GET'])
+def get_disaster_distribution_months():
+    """Get count and percentage of posts by disaster type for a specific month range"""
+    try:
+        # Get the months parameter (defaults to 6 months)
+        months_back = request.args.get('months', '6')
+        try:
+            months_back = int(months_back)
+        except ValueError:
+            months_back = 6
+
+        # Generate cache key including the months parameter
+        cache_key = f"disaster_distribution_months_{months_back}"
+        cached_response = get_cached_response(cache_key)
+        if cached_response:
+            return cached_response
+
+        dynamodb = get_dynamodb()
+        posts_table = dynamodb.Table(POSTS_TABLE)
+
+        # Calculate start date for filtering
+        now = datetime.now()
+        start_date = now - timedelta(days=30 * months_back)
+        start_date_str = start_date.isoformat()
+        logger.info(f"Filtering disasters for the last {months_back} months (from {start_date_str})")
+        filter_expression = Attr('created_at').gte(start_date_str)
+
+        # Query parameters
+        query_params = {
+            'IndexName': 'IsDisasterIndex',
+            'KeyConditionExpression': Key('is_disaster_str').eq('true'),
+            'FilterExpression': filter_expression
+        }
+
+        # Get all disaster posts using IsDisasterIndex with time filter
+        response = posts_table.query(**query_params)
+
+        all_items = response['Items']
+        while 'LastEvaluatedKey' in response:
+            query_params['ExclusiveStartKey'] = response['LastEvaluatedKey']
+            response = posts_table.query(**query_params)
+            all_items.extend(response['Items'])
+
+        logger.info(f"Found {len(all_items)} disaster posts in the last {months_back} months")
+
+        # Count by disaster type
+        type_counts = {}
+        total_count = 0
+
+        for item in all_items:
+            disaster_type = item.get('disaster_type', 'unknown')
+            if disaster_type not in type_counts:
+                type_counts[disaster_type] = 0
+            type_counts[disaster_type] += 1
+            total_count += 1
+
+        # Calculate percentages
+        result = {
+            "data": [],
+            "total_count": total_count,
+            "time_period": f"{months_back} months"
+        }
+
+        for disaster_type, count in type_counts.items():
+            percentage = (count / total_count * 100) if total_count > 0 else 0
+            result["data"].append({
+                "type": disaster_type,
+                "count": count,
+                "percentage": round(float(percentage), 1)
+            })
+
+        # Sort by count descending
+        result["data"].sort(key=lambda x: x["count"], reverse=True)
+
+        api_response = app.response_class(
+            response=json.dumps(result, cls=DecimalEncoder),
+            status=200,
+            mimetype='application/json'
+        )
+
+        # Cache the response
+        set_cached_response(cache_key, api_response)
+
+        return api_response
+
+    except Exception as e:
+        logger.error(f"Error in get_disaster_distribution_months: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # Endpoint to clear cache (for debugging/testing)
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():

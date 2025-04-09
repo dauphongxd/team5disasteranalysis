@@ -145,6 +145,7 @@ function TweetFeed({ selectedDisaster }) {
         disaster_type: post.disaster_type,
         confidence_score: post.confidence_score,
         is_disaster: true
+        // Removed isNew: true flag to eliminate animation
       }));
 
       // Update state safely
@@ -276,8 +277,8 @@ function TweetFeed({ selectedDisaster }) {
         avatar: post.avatar || post.avatar_url || '/default-avatar.jpg',
         disaster_type: post.disaster_type || 'unknown',
         confidence_score: post.confidence_score || 0,
-        is_disaster: true,
-        isNew: true // Flag as new for animation
+        is_disaster: true
+        // Removed isNew: true flag to eliminate animation
       };
 
       // Add to tweets if not a duplicate
@@ -318,18 +319,7 @@ function TweetFeed({ selectedDisaster }) {
     return () => observer.unobserve(currentLoader);
   }, [loading, hasMore, handleLoadMore]);
 
-  // Remove "new" flag after animation completes
-  useEffect(() => {
-    const newTweets = tweets.filter(tweet => tweet.isNew);
-    if (newTweets.length > 0) {
-      const timer = setTimeout(() => {
-        setTweets(prevTweets =>
-            prevTweets.map(tweet => tweet.isNew ? { ...tweet, isNew: false } : tweet)
-        );
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [tweets]);
+  // Removed useEffect for clearing "new" flag since we no longer set it
 
   // Render loading state
   if (loading && tweets.length === 0) {
@@ -387,7 +377,8 @@ function TweetFeed({ selectedDisaster }) {
               <div className="tweet-content-wrapper">
                 {tweets.map((tweet) => (
                     <div
-                        className={`tweet-container ${tweet.isNew ? 'new-tweet' : ''}`}
+                        className="tweet-container"
+                        // Removed `${tweet.isNew ? 'new-tweet' : ''}` class
                         key={tweet.uri}
                     >
                       <div className="tweet-header">

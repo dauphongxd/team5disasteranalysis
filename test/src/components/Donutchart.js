@@ -35,6 +35,12 @@ const DonutChart = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const chartRef = useRef(null);
+  // Add state to track selected category
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  // Track last click time for double-click detection
+  const [lastClickTime, setLastClickTime] = useState(0);
+  // Number of months to display data for
+  const MONTHS_PERIOD = 6;
 
   // Use useCallback to memoize the fetchDisasterDistribution function
   const fetchDisasterDistribution = useCallback(async () => {
@@ -42,8 +48,8 @@ const DonutChart = () => {
       setLoading(true);
       setError(null);
 
-      // Use the api module to fetch distribution data
-      const apiData = await api.getDisasterDistribution();
+      // Use the dedicated 6-month endpoint
+      const apiData = await api.getDisasterDistributionMonths(MONTHS_PERIOD);
 
       if (!apiData || !apiData.data || !Array.isArray(apiData.data)) {
         throw new Error('Invalid data format received from API');
@@ -144,6 +150,29 @@ const DonutChart = () => {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
+  // Handle chart click events
+  const handleChartClick = (event, chartElements) => {
+    if (chartElements.length === 0) return;
+
+    const clickedIndex = chartElements[0].index;
+
+    // Get the category from the clicked segment
+    const clickedCategory = chartData.superCategoryData[clickedIndex].category;
+
+    // Calculate time since last click for double-click detection (300ms threshold)
+    const currentTime = new Date().getTime();
+    const isDoubleClick = (currentTime - lastClickTime < 300);
+    setLastClickTime(currentTime);
+
+    if (isDoubleClick || clickedCategory === selectedCategory) {
+      // Reset selection on double-click or if clicking the same category again
+      setSelectedCategory(null);
+    } else {
+      // Set new selection
+      setSelectedCategory(clickedCategory);
+    }
+  };
+
   // Chart options
   const options = {
     responsive: true,
@@ -152,7 +181,7 @@ const DonutChart = () => {
       legend: {
         position: "bottom",
         labels: {
-          color: "#ffffff", // Match your theme
+          color: "#ffffff",
           font: {
             size: 12
           }
@@ -165,17 +194,18 @@ const DonutChart = () => {
         borderColor: 'rgba(255, 255, 255, 0.3)',
         borderWidth: 1,
       }
-    }
-    // Keep hover effects but no click handler
+    },
+    // Add onClick handler to detect clicks on chart segments
+    onClick: handleChartClick
   };
 
   if (loading && !chartData) {
     return (
         <div className="help-section">
           <h2 className="heading">Natural Disasters Overview</h2>
-          <div className="Donutchart-section">
-            <div className="loading-indicator">Loading disaster data...</div>
-          </div>
+          {/*<div className="Donutchart-section">*/}
+          {/*  <div className="loading-indicator">Loading disaster data (last {MONTHS_PERIOD} months)...</div>*/}
+          {/*</div>*/}
         </div>
     );
   }
@@ -194,6 +224,11 @@ const DonutChart = () => {
 
   if (!chartData) return null;
 
+  // Filter the displayed data based on selection
+  const filteredCategoryData = selectedCategory
+      ? chartData.superCategoryData.filter(item => item.category === selectedCategory)
+      : chartData.superCategoryData;
+
   return (
       <div className="help-section">
         <h2 className="heading">Natural Disasters Overview</h2>
@@ -201,13 +236,25 @@ const DonutChart = () => {
           {/* Donut Chart */}
           <div className="donutchart-container">
             <Doughnut data={chartData.chartJsData} options={options} />
+            {/*{selectedCategory && (*/}
+            {/*    <div className="click-instructions">*/}
+            {/*      Showing data for category: {superCategoryNames[selectedCategory] || selectedCategory}*/}
+            {/*      <br />*/}
+            {/*      <small>(Click again or double-click anywhere on the chart to show all categories)</small>*/}
+            {/*    </div>*/}
+            {/*)}*/}
+            {/*{!selectedCategory && (*/}
+            {/*    <div className="click-instructions">*/}
+            {/*      <small>Click on a category to filter the table view</small>*/}
+            {/*    </div>*/}
+            {/*)}*/}
           </div>
 
-          {/* Overview Section - Always shows super categories */}
+          {/* Overview Section - Filtered when a category is selected */}
           <div className="overview-section">
             <h3>Disaster Categories Overview</h3>
             <ul>
-              {chartData.superCategoryData.map(item => (
+              {filteredCategoryData.map(item => (
                   <li key={item.category}>
                 <span className="category">
                   {item.displayName}
