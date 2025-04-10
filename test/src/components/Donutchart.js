@@ -30,6 +30,30 @@ const superCategoryNames = {
   other: "Other"
 };
 
+// Consistent color mapping for each category
+const categoryColors = {
+  fire: "#FF6384",     // Red
+  storm: "#36A2EB",    // Blue
+  earthquake: "#FFCE56", // Yellow
+  tsunami: "#00FFFF",  // Cyan - Specific color for tsunami
+  volcano: "#9966FF",  // Purple
+  flood: "#4BC0C0",    // Teal
+  landslide: "#FF9F40", // Orange
+  other: "#C9CBCF"     // Gray
+};
+
+// Define the order we want to display categories in
+const categoryOrder = [
+  "fire",
+  "storm",
+  "earthquake",
+  "tsunami",
+  "volcano",
+  "flood",
+  "landslide",
+  "other"
+];
+
 // Helper function to normalize disaster types
 const normalizeDisasterType = (type) => {
   if (!type) return '';
@@ -41,12 +65,12 @@ const DonutChart = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const chartRef = useRef(null);
-  // Add state to track selected category
   const [selectedCategory, setSelectedCategory] = useState(null);
-  // Track last click time for double-click detection
   const [lastClickTime, setLastClickTime] = useState(0);
-  // Number of months to display data for
   const MONTHS_PERIOD = 6;
+
+  // Store the category map so we can look it up correctly in the click handler
+  const categoryMapRef = useRef(null);
 
   // Use useCallback to memoize the fetchDisasterDistribution function
   const fetchDisasterDistribution = useCallback(async () => {
@@ -61,14 +85,13 @@ const DonutChart = () => {
         throw new Error('Invalid data format received from API');
       }
 
-      // Aggregate data by super category
-      const superCategoryCounts = {};
-      let totalCount = 0;
-
       // Initialize all super categories with 0 counts
+      const superCategoryCounts = {};
       Object.keys(disasterCategoriesMapping).forEach(category => {
         superCategoryCounts[category] = 0;
       });
+
+      let totalCount = 0;
 
       // Process each data item
       apiData.data.forEach(item => {
@@ -108,31 +131,21 @@ const DonutChart = () => {
         }
       });
 
-      // Create the array of super categories with counts > 0
-      const superCategoryData = Object.entries(superCategoryCounts)
-          .filter(([_, count]) => count > 0)
-          .map(([category, count]) => ({
-            category,
-            displayName: superCategoryNames[category] || capitalizeFirstLetter(category),
-            count
-          }))
-          .sort((a, b) => b.count - a.count); // Sort by count (highest first)
+      // Create array of ALL super categories including those with 0 counts
+      // Order by our predefined ordering, not by count
+      const superCategoryData = categoryOrder.map(category => ({
+        category,
+        displayName: superCategoryNames[category] || capitalizeFirstLetter(category),
+        count: superCategoryCounts[category] || 0
+      }));
 
-      // Prepare chart data format
+      // Save the ordered categories to the ref so we can use it in click handler
+      categoryMapRef.current = superCategoryData;
+
+      // Extract the label and data arrays in the same order
       const labels = superCategoryData.map(item => item.displayName);
       const dataValues = superCategoryData.map(item => item.count);
-
-      // Define chart colors - match your theme
-      const backgroundColors = [
-        "#FF6384", // Red
-        "#36A2EB", // Blue
-        "#FFCE56", // Yellow
-        "#4BC0C0", // Teal
-        "#9966FF", // Purple
-        "#FF9F40", // Orange
-        "#FF5733", // Bright Orange
-        "#C9CBCF", // Gray
-      ];
+      const backgroundColors = superCategoryData.map(item => categoryColors[item.category]);
 
       // Format for Chart.js
       const formattedData = {
@@ -141,7 +154,7 @@ const DonutChart = () => {
           {
             label: "Disaster Occurrences",
             data: dataValues,
-            backgroundColor: backgroundColors.slice(0, labels.length),
+            backgroundColor: backgroundColors,
             borderWidth: 0,
             hoverOffset: 10,
           },
@@ -177,9 +190,21 @@ const DonutChart = () => {
     if (chartElements.length === 0) return;
 
     const clickedIndex = chartElements[0].index;
+    console.log("Clicked index:", clickedIndex);
 
-    // Get the category from the clicked segment
-    const clickedCategory = chartData.superCategoryData[clickedIndex].category;
+    // Get the ordered categories from our ref
+    if (!categoryMapRef.current || clickedIndex >= categoryMapRef.current.length) {
+      console.error("Invalid chart click index or categories not loaded");
+      return;
+    }
+
+    // Get the category data from our ordered mapping
+    const clickedCategoryData = categoryMapRef.current[clickedIndex];
+    console.log("Clicked category data:", clickedCategoryData);
+
+    // Get the category ID
+    const clickedCategory = clickedCategoryData.category;
+    console.log("Setting selected category to:", clickedCategory);
 
     // Calculate time since last click for double-click detection (300ms threshold)
     const currentTime = new Date().getTime();
@@ -215,6 +240,15 @@ const DonutChart = () => {
         bodyColor: '#ffffff',
         borderColor: 'rgba(255, 255, 255, 0.3)',
         borderWidth: 1,
+        callbacks: {
+          // Add category name to tooltip for debugging
+          afterLabel: function(context) {
+            if (categoryMapRef.current && context.dataIndex < categoryMapRef.current.length) {
+              return `Category: ${categoryMapRef.current[context.dataIndex].category}`;
+            }
+            return '';
+          }
+        }
       }
     },
     // Add onClick handler to detect clicks on chart segments
@@ -263,11 +297,6 @@ const DonutChart = () => {
             {/*      Showing data for category: {superCategoryNames[selectedCategory] || selectedCategory}*/}
             {/*      <br />*/}
             {/*      <small>(Click again or double-click anywhere on the chart to show all categories)</small>*/}
-            {/*    </div>*/}
-            {/*)}*/}
-            {/*{!selectedCategory && (*/}
-            {/*    <div className="click-instructions">*/}
-            {/*      <small>Click on a category to filter the table view</small>*/}
             {/*    </div>*/}
             {/*)}*/}
           </div>

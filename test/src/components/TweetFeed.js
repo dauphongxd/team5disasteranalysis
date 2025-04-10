@@ -14,29 +14,52 @@ const disasterCategoriesMapping = {
   other: ["haze", "meteor", "unknown"]
 };
 
-// Helper function to normalize disaster types (handles both underscore and space formats)
+// Helper function to normalize disaster types
 const normalizeDisasterType = (type) => {
   if (!type) return '';
-  return String(type).toLowerCase();
+  return String(type).toLowerCase().replace(/[_-]/g, ' ').trim();
 };
 
-// Helper function to check if a post's disaster type matches the selected filter
+// Enhanced matching function
 const checkDisasterTypeMatch = (postType, selectedType) => {
-  if (!postType) return selectedType === 'all' || selectedType === 'other';
-  if (selectedType === 'all') return true;
-  if (normalizeDisasterType(postType) === normalizeDisasterType(selectedType)) return true;
-
-  if (disasterCategoriesMapping[selectedType]) {
-    // Normalize the post type for comparison
-    const normalizedPostType = normalizeDisasterType(postType);
-
-    // Check if any subcategory matches (after normalization)
-    return disasterCategoriesMapping[selectedType].some(subType =>
-        normalizeDisasterType(subType) === normalizedPostType ||
-        normalizeDisasterType(subType).replace(/_/g, ' ') === normalizedPostType ||
-        normalizedPostType.replace(/_/g, ' ') === normalizeDisasterType(subType)
-    );
+  // If no post type, match only with 'all' or 'other'
+  if (!postType) {
+    return selectedType === 'all' || selectedType === 'other';
   }
+
+  // All category matches everything
+  if (selectedType === 'all') {
+    return true;
+  }
+
+  // Normalize both types for comparison
+  const normalizedPostType = normalizeDisasterType(postType);
+  const normalizedSelectedType = normalizeDisasterType(selectedType);
+
+  // Check direct match
+  if (normalizedSelectedType === normalizedPostType) {
+    return true;
+  }
+
+  // Check for substring match
+  if (normalizedPostType.includes(normalizedSelectedType) ||
+      normalizedSelectedType.includes(normalizedPostType)) {
+    return true;
+  }
+
+  // Check for match with super category
+  if (disasterCategoriesMapping[selectedType]) {
+    for (const subType of disasterCategoriesMapping[selectedType]) {
+      const normalizedSubType = normalizeDisasterType(subType);
+
+      // Check for substring match
+      if (normalizedPostType.includes(normalizedSubType) ||
+          normalizedSubType.includes(normalizedPostType)) {
+        return true;
+      }
+    }
+  }
+
   return false;
 };
 
@@ -60,11 +83,6 @@ function TweetFeed({ selectedDisaster }) {
   const currentOperationRef = useRef(null);
   const tweetsRef = useRef(tweets);
   const connectionAttemptedRef = useRef(false);
-  const renderCountRef = useRef(0);
-
-  // Debugging render cycles
-  renderCountRef.current += 1;
-  console.log(`TweetFeed render #${renderCountRef.current}, selected disaster: ${selectedDisaster}`);
 
   // Update refs when state changes
   useEffect(() => {
@@ -91,7 +109,7 @@ function TweetFeed({ selectedDisaster }) {
     }
   }, [selectedDisaster]);
 
-  // FETCH TWEETS FUNCTION - Stable reference that doesn't change
+  // FETCH TWEETS FUNCTION
   const fetchTweets = useCallback(async (isInitialLoad = false) => {
     // Generate a unique operation ID to track this specific fetch
     const operationId = Date.now();
@@ -99,7 +117,6 @@ function TweetFeed({ selectedDisaster }) {
 
     // Prevent concurrent fetches or fetches while unmounting
     if (fetchingRef.current) {
-      console.log("Already fetching, ignoring request");
       return;
     }
 
@@ -122,18 +139,12 @@ function TweetFeed({ selectedDisaster }) {
       setError(null);
 
       const token = isInitialLoad ? null : nextTokenRef.current;
-      console.log(`Fetching tweets: isInitialLoad=${isInitialLoad}, token=${token}, type=${selectedDisasterRef.current}`);
-
-      // Determine if we need to query by super-category
-      const isSuperCategory = Object.keys(disasterCategoriesMapping).includes(selectedDisasterRef.current);
-      const apiType = isSuperCategory ? 'all' : selectedDisasterRef.current;
 
       // Force fresh data only on initial load
-      const data = await api.getPosts(apiType, POSTS_PER_PAGE, token, isInitialLoad);
+      const data = await api.getPosts(selectedDisasterRef.current, POSTS_PER_PAGE, token, isInitialLoad);
 
       // Check if this operation is still current (not superseded)
       if (currentOperationRef.current !== operationId) {
-        console.log("Operation was superseded, discarding results");
         fetchingRef.current = false;
         return;
       }
@@ -142,25 +153,8 @@ function TweetFeed({ selectedDisaster }) {
         throw new Error("Invalid data format returned from API");
       }
 
-      // Filter by disaster type if using a super-category
-      let filteredPosts = data.posts;
-      if (isSuperCategory && selectedDisasterRef.current !== 'all') {
-        const subcategories = disasterCategoriesMapping[selectedDisasterRef.current] || [];
-        filteredPosts = data.posts.filter(post => {
-          // Use our enhanced matching function for more robust filtering
-          return subcategories.some(subType => {
-            const postDisasterType = normalizeDisasterType(post.disaster_type);
-            const subcategoryType = normalizeDisasterType(subType);
-
-            return postDisasterType === subcategoryType ||
-                postDisasterType === subcategoryType.replace(/_/g, ' ') ||
-                postDisasterType.replace(/_/g, ' ') === subcategoryType;
-          });
-        });
-      }
-
       // Format posts for display
-      const formattedTweets = filteredPosts.map(post => ({
+      const formattedTweets = data.posts.map(post => ({
         uri: post.post_id,
         handle: post.handle || post.username || (post.user_id ? String(post.user_id).substring(0, 10) + '...' : ''),
         display_name: post.display_name?.trim() || post.handle || "Unknown User",
@@ -170,7 +164,6 @@ function TweetFeed({ selectedDisaster }) {
         disaster_type: post.disaster_type,
         confidence_score: post.confidence_score,
         is_disaster: true
-        // Removed isNew: true flag to eliminate animation
       }));
 
       // Update state safely
@@ -233,8 +226,6 @@ function TweetFeed({ selectedDisaster }) {
 
     // Clean up on unmount
     return () => {
-      // Don't actually disconnect - let the WebSocket service handle connections
-      // Just mark as disconnected in this component
       setConnected(false);
     };
   }, []); // Empty dependency array - run once only
@@ -250,7 +241,6 @@ function TweetFeed({ selectedDisaster }) {
   useEffect(() => {
     // Set a small delay to avoid any race conditions with parent component renders
     const timer = setTimeout(() => {
-      console.log("Initial data load");
       fetchTweets(true);
       isInitialMount.current = false;
     }, 100);
@@ -267,7 +257,6 @@ function TweetFeed({ selectedDisaster }) {
       // If we're already fetching, don't start another fetch
       if (fetchingRef.current) return;
 
-      console.log("Fetching tweets for disaster type:", selectedDisaster);
       fetchTweets(true);
     }, 200);
 
@@ -284,11 +273,8 @@ function TweetFeed({ selectedDisaster }) {
     const handleNewPost = (post) => {
       if (!post) return;
 
-      console.log("Received new post via WebSocket:", post);
-
       // Check if this post matches our current filter
       if (!checkDisasterTypeMatch(post.disaster_type, selectedDisasterRef.current)) {
-        console.log(`Filtering out post of type: ${post.disaster_type}`);
         return;
       }
 
@@ -303,7 +289,6 @@ function TweetFeed({ selectedDisaster }) {
         disaster_type: post.disaster_type || 'unknown',
         confidence_score: post.confidence_score || 0,
         is_disaster: true
-        // Removed isNew: true flag to eliminate animation
       };
 
       // Add to tweets if not a duplicate
@@ -344,8 +329,6 @@ function TweetFeed({ selectedDisaster }) {
     return () => observer.unobserve(currentLoader);
   }, [loading, hasMore, handleLoadMore]);
 
-  // Removed useEffect for clearing "new" flag since we no longer set it
-
   // Render loading state
   if (loading && tweets.length === 0) {
     return (
@@ -380,18 +363,6 @@ function TweetFeed({ selectedDisaster }) {
       <div className="tweet-section">
         <div className="map-header">
           <h3>Disaster Tweets</h3>
-          {/*<div className="tweet-controls">*/}
-          {/*  <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>*/}
-          {/*    {connected ? 'Live Updates' : 'Offline'}*/}
-          {/*  </div>*/}
-          {/*  <button*/}
-          {/*      className="refresh-button"*/}
-          {/*      onClick={() => fetchTweets(true)}*/}
-          {/*      disabled={loading || fetchingRef.current}*/}
-          {/*  >*/}
-          {/*    Refresh*/}
-          {/*  </button>*/}
-          {/*</div>*/}
         </div>
         <div className="tweet-feed" id="tweet-feed">
           {tweets.length === 0 ? (
@@ -403,7 +374,6 @@ function TweetFeed({ selectedDisaster }) {
                 {tweets.map((tweet) => (
                     <div
                         className="tweet-container"
-                        // Removed `${tweet.isNew ? 'new-tweet' : ''}` class
                         key={tweet.uri}
                     >
                       <div className="tweet-header">

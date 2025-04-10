@@ -207,25 +207,27 @@ def get_posts():
         dynamodb = get_dynamodb()
         posts_table = dynamodb.Table(POSTS_TABLE)
 
-        # Set up query parameters
-        if disaster_type != 'all':
-            # Use the GlobalSecondaryIndex for disaster_type
-            params = {
-                'IndexName': 'DisasterTypeIndex',
-                'KeyConditionExpression': Key('disaster_type').eq(disaster_type),
-                'Limit': limit,
-                'ScanIndexForward': False  # Sort in descending order (newest first)
-            }
-            operation = posts_table.query
-        else:
-            # For 'all', we'll use the IsDisasterIndex with 'true' key
-            params = {
-                'IndexName': 'IsDisasterIndex',
-                'KeyConditionExpression': Key('is_disaster_str').eq('true'),
-                'Limit': limit,
-                'ScanIndexForward': False  # Sort in descending order (newest first)
-            }
-            operation = posts_table.query
+        # Define category mappings for filtering
+        disaster_categories = {
+            "fire": ["wild_fire", "bush_fire", "forest_fire"],
+            "storm": ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
+            "earthquake": ["earthquake"],
+            "tsunami": ["tsunami"],
+            "volcano": ["volcano"],
+            "flood": ["flood"],
+            "landslide": ["landslide", "avalanche"],
+            "other": ["haze", "meteor", "unknown"]
+        }
+
+        # For consistency, always use the IsDisasterIndex to get all disaster posts
+        # and then filter on the client side if needed
+        params = {
+            'IndexName': 'IsDisasterIndex',
+            'KeyConditionExpression': Key('is_disaster_str').eq('true'),
+            'Limit': limit * 3,  # Fetch more items to account for filtering
+            'ScanIndexForward': False  # Sort in descending order (newest first)
+        }
+        operation = posts_table.query
 
         # Add pagination token if provided
         if next_token:
@@ -238,7 +240,7 @@ def get_posts():
         # Execute the query or scan
         response = operation(**params)
 
-        # Process posts with language filtering
+        # Process posts with language and category filtering
         posts = []
         for item in response.get('Items', []):
             try:
@@ -260,9 +262,28 @@ def get_posts():
                         if detected_lang != language:
                             continue
                     except LangDetectException:
-                        # If language detection fails, include the post if it's in a fallback mode
-                        # You could choose to exclude these posts instead
+                        # If language detection fails, include the post in fallback mode
                         logger.warning(f"Language detection failed for post: {item.get('post_id')}")
+                        continue
+
+                # Handle category filtering
+                if disaster_type != 'all':
+                    item_disaster_type = item.get('disaster_type', '').lower()
+
+                    # Check if the item's disaster type matches any in the selected category
+                    if disaster_type in disaster_categories:
+                        subcategories = disaster_categories[disaster_type]
+                        match_found = False
+
+                        for subcategory in subcategories:
+                            if subcategory in item_disaster_type or item_disaster_type in subcategory:
+                                match_found = True
+                                break
+
+                        if not match_found:
+                            continue
+                    # For direct matching if not a super-category
+                    elif item_disaster_type != disaster_type.lower():
                         continue
 
                 # Transform DynamoDB item to match expected format
@@ -281,13 +302,18 @@ def get_posts():
                     'media': item.get('media_urls', [])
                 }
                 posts.append(post)
+
+                # If we've reached our limit after filtering, break
+                if len(posts) >= limit:
+                    break
+
             except Exception as e:
                 logger.error(f"Error processing post {item.get('post_id')}: {str(e)}")
                 # Continue with next post instead of failing completely
                 continue
 
-        # If we didn't reach our limit, and we have a LastEvaluatedKey, we need to get more posts
-        # This handles the case where language filtering reduced our results below the limit
+        # If we didn't reach our limit, and we have a LastEvaluatedKey, get more posts
+        # This handles the case where filtering reduced our results below the limit
         original_last_key = response.get('LastEvaluatedKey')
         while len(posts) < limit and 'LastEvaluatedKey' in response:
             params['ExclusiveStartKey'] = response['LastEvaluatedKey']
@@ -309,6 +335,26 @@ def get_posts():
                             if detected_lang != language:
                                 continue
                         except LangDetectException:
+                            continue
+
+                    # Handle category filtering (same logic as above)
+                    if disaster_type != 'all':
+                        item_disaster_type = item.get('disaster_type', '').lower()
+
+                        # Check if the item's disaster type matches any in the selected category
+                        if disaster_type in disaster_categories:
+                            subcategories = disaster_categories[disaster_type]
+                            match_found = False
+
+                            for subcategory in subcategories:
+                                if subcategory in item_disaster_type or item_disaster_type in subcategory:
+                                    match_found = True
+                                    break
+
+                            if not match_found:
+                                continue
+                        # For direct matching if not a super-category
+                        elif item_disaster_type != disaster_type.lower():
                             continue
 
                     post = {

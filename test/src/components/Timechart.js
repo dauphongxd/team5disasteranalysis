@@ -47,6 +47,30 @@ const superCategoryNames = {
   other: "Other"
 };
 
+// Define the fixed order of categories to ensure consistent display
+const categoryOrder = [
+  "fire",
+  "storm",
+  "earthquake",
+  "tsunami",
+  "volcano",
+  "flood",
+  "landslide",
+  "other"
+];
+
+// Consistent color mapping for each category
+const categoryColors = {
+  fire: "#FF6384",     // Red
+  storm: "#36A2EB",    // Blue
+  earthquake: "#FFCE56", // Yellow
+  tsunami: "#00FFFF",  // Cyan for tsunami
+  volcano: "#9966FF",  // Purple
+  flood: "#4BC0C0",    // Teal
+  landslide: "#FF9F40", // Orange
+  other: "#C9CBCF"     // Gray
+};
+
 // Helper function to normalize disaster types (handles both underscore and space formats)
 const normalizeDisasterType = (type) => {
   if (!type) return '';
@@ -140,9 +164,6 @@ const Timechart = ({ selectedDisaster }) => {
       // The final datasets we'll display
       let finalDatasets = [];
 
-      // Common colors to use for datasets
-      const colors = ["#36A2EB", "#FF6384", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#8E44AD", "#1ABC9C"];
-
       // Process all labels
       let allLabels = data.labels;
 
@@ -158,7 +179,7 @@ const Timechart = ({ selectedDisaster }) => {
         const superCategoryData = {};
 
         // Initialize each super category with zeros
-        Object.keys(superCategoryNames).forEach(category => {
+        categoryOrder.forEach(category => {
           superCategoryData[category] = Array(allLabels.length).fill(0);
         });
 
@@ -182,20 +203,18 @@ const Timechart = ({ selectedDisaster }) => {
           });
         });
 
-        // Create a dataset for each super category
-        let colorIndex = 0;
-        Object.entries(superCategoryData).forEach(([category, values]) => {
-          // Skip categories with all zeros
-          if (values.some(v => v > 0)) {
-            finalDatasets.push({
-              label: superCategoryNames[category] || capitalizeFirstLetter(category),
-              data: values,
-              borderColor: colors[colorIndex % colors.length],
-              backgroundColor: colors[colorIndex % colors.length] + "80", // Add transparency
-              fill: true
-            });
-            colorIndex++;
-          }
+        // Create a dataset for each super category in the predefined order
+        // Always include all categories, even if they have all zeros
+        categoryOrder.forEach((category, index) => {
+          const color = categoryColors[category] || Object.values(categoryColors)[index % Object.values(categoryColors).length];
+
+          finalDatasets.push({
+            label: superCategoryNames[category] || capitalizeFirstLetter(category),
+            data: superCategoryData[category] || Array(allLabels.length).fill(0),
+            borderColor: color,
+            backgroundColor: color + "80", // Add transparency
+            fill: true
+          });
         });
       } else {
         // When a specific super category is selected, show all its subcategories
@@ -227,11 +246,14 @@ const Timechart = ({ selectedDisaster }) => {
               }
             });
 
+            const colorIndex = index % Object.values(categoryColors).length;
+            const color = Object.values(categoryColors)[colorIndex];
+
             finalDatasets.push({
               label: capitalizeFirstLetter(disasterType.replace('_', ' ')),
               data: mappedData,
-              borderColor: colors[index % colors.length],
-              backgroundColor: colors[index % colors.length] + "80", // Add transparency
+              borderColor: color,
+              backgroundColor: color + "80", // Add transparency
               fill: true
             });
           }
@@ -241,11 +263,14 @@ const Timechart = ({ selectedDisaster }) => {
         let extraColorIndex = finalDatasets.length;
         subcategories.forEach(subcategory => {
           if (!foundSubcategories.has(subcategory)) {
+            const colorIndex = extraColorIndex % Object.values(categoryColors).length;
+            const color = Object.values(categoryColors)[colorIndex];
+
             finalDatasets.push({
               label: capitalizeFirstLetter(subcategory.replace('_', ' ')),
               data: Array(allLabels.length).fill(0),
-              borderColor: colors[extraColorIndex % colors.length],
-              backgroundColor: colors[extraColorIndex % colors.length] + "80", // Add transparency
+              borderColor: color,
+              backgroundColor: color + "80", // Add transparency
               fill: true
             });
             extraColorIndex++;

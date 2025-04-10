@@ -13,7 +13,7 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
     // Updated to use underscores instead of spaces for consistency with backend
     const defaultCategories = [
         { id: "all", label: "All" },
-        { id: "fire", label: "Wildfire", includes: ["wild_fire", "bush_fire", "forest_fire"] },
+        { id: "fire", label: "Fire", includes: ["wild_fire", "bush_fire", "forest_fire"] },
         { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"] },
         { id: "earthquake", label: "Earthquake", includes: ["earthquake"] },
         { id: "tsunami", label: "Tsunami", includes: ["tsunami"] },
@@ -37,32 +37,10 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
         return String(type).toLowerCase().replace(/ /g, '_');
     };
 
-    // Determine which categories to display based on available types
+    // Modified to always show all categories
     const getCategoriesToDisplay = () => {
-        // If no available types from API, use default categories
-        if (!availableTypes || availableTypes.length === 0) {
-            return defaultCategories;
-        }
-
-        // Otherwise, use the categories that have matching types in the API response
-        return defaultCategories.filter(category => {
-            // "All" category is always shown
-            if (category.id === "all") return true;
-
-            // For other categories, check if any of their included types are in availableTypes
-            if (category.includes) {
-                return category.includes.some(type => {
-                    // Normalize both the type from our mapping and the available type
-                    const normalizedType = normalizeDisasterType(type);
-                    return availableTypes.some(availType =>
-                        normalizedType === normalizeDisasterType(availType)
-                    );
-                });
-            }
-
-            // If the category doesn't have includes, check if its ID matches any available types
-            return availableTypes.includes(category.id);
-        });
+        // Always return all default categories
+        return defaultCategories;
     };
 
     const categoriesToDisplay = getCategoriesToDisplay();
