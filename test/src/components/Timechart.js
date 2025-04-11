@@ -79,10 +79,38 @@ const normalizeDisasterType = (type) => {
 
 const Timechart = ({ selectedDisaster }) => {
   const [view, setView] = useState("weekly"); // Use API's interval property: "daily", "weekly", "monthly"
-  const [timeframeInDays, setTimeframeInDays] = useState(84); // 12 weeks by default
+  const [timeframeInDays, setTimeframeInDays] = useState(35); // 5 weeks by default (changed from 84)
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Generate exactly 5 weeks of labels ending with the current week
+  const generateExact5WeekLabels = () => {
+    const labels = [];
+    const today = new Date();
+
+    // Find the start of the current week (Sunday)
+    const currentWeekStart = new Date(today);
+    const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    currentWeekStart.setDate(today.getDate() - dayOfWeek); // Go back to Sunday
+
+    // Set time to 00:00:00 for consistent comparison
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    // Generate 5 weeks of labels, starting from 4 weeks ago
+    for (let i = 4; i >= 0; i--) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() - (i * 7));
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      // Format as ISO string for API compatibility
+      labels.push(weekStart.toISOString().split('T')[0]);
+    }
+
+    return labels;
+  };
 
   // Function to generate monthly labels from current month back 11 months
   const generateMonthlyLabels = () => {
@@ -151,6 +179,9 @@ const Timechart = ({ selectedDisaster }) => {
 
       console.log("Fetching timeline data for disaster type:", selectedDisaster);
 
+      // Generate the exact 5 week labels if we're in weekly view
+      const weeklyLabels = view === "weekly" ? generateExact5WeekLabels() : [];
+
       // If we're in monthly view, pre-generate the labels
       const monthlyLabels = view === "monthly" ? generateMonthlyLabels() : [];
 
@@ -165,11 +196,15 @@ const Timechart = ({ selectedDisaster }) => {
       let finalDatasets = [];
 
       // Process all labels
-      let allLabels = data.labels;
+      let allLabels;
 
-      // For monthly view, use our pre-generated labels
-      if (view === "monthly") {
+      // Choose the appropriate labels based on view
+      if (view === "weekly") {
+        allLabels = weeklyLabels;
+      } else if (view === "monthly") {
         allLabels = monthlyLabels;
+      } else {
+        allLabels = data.labels;
       }
 
       if (selectedDisaster === 'all') {
@@ -188,13 +223,35 @@ const Timechart = ({ selectedDisaster }) => {
           const disasterType = dataset.label.toLowerCase();
           const superCategory = getSuperCategoryForType(disasterType);
 
+          // Map API data to our week labels
           dataset.data.forEach((value, i) => {
-            // Handle potential label mismatch for monthly view
-            let labelIndex = i;
-            if (view === "monthly") {
-              const label = data.labels[i];
-              const normalizedLabel = normalizeMonthString(label);
+            if (i >= dataset.data.length) return;
+
+            const apiLabel = data.labels[i];
+            // Find the matching week in our generated labels
+            let labelIndex = -1;
+
+            if (view === "weekly") {
+              // For weekly, find the closest match by parsing dates
+              const apiDate = new Date(apiLabel);
+
+              // Find the closest week
+              for (let j = 0; j < allLabels.length; j++) {
+                const weekStart = new Date(allLabels[j]);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+
+                if (apiDate >= weekStart && apiDate <= weekEnd) {
+                  labelIndex = j;
+                  break;
+                }
+              }
+            } else if (view === "monthly") {
+              const normalizedLabel = normalizeMonthString(apiLabel);
               labelIndex = allLabels.indexOf(normalizedLabel);
+            } else {
+              // For daily, use direct index if available
+              labelIndex = allLabels.indexOf(apiLabel);
             }
 
             if (labelIndex !== -1) {
@@ -233,12 +290,33 @@ const Timechart = ({ selectedDisaster }) => {
             const mappedData = Array(allLabels.length).fill(0);
 
             dataset.data.forEach((value, i) => {
-              // Handle potential label mismatch for monthly view
-              let labelIndex = i;
-              if (view === "monthly") {
-                const label = data.labels[i];
-                const normalizedLabel = normalizeMonthString(label);
+              if (i >= dataset.data.length) return;
+
+              const apiLabel = data.labels[i];
+              // Find the matching week in our generated labels
+              let labelIndex = -1;
+
+              if (view === "weekly") {
+                // For weekly, find the closest match by parsing dates
+                const apiDate = new Date(apiLabel);
+
+                // Find the closest week
+                for (let j = 0; j < allLabels.length; j++) {
+                  const weekStart = new Date(allLabels[j]);
+                  const weekEnd = new Date(weekStart);
+                  weekEnd.setDate(weekStart.getDate() + 6);
+
+                  if (apiDate >= weekStart && apiDate <= weekEnd) {
+                    labelIndex = j;
+                    break;
+                  }
+                }
+              } else if (view === "monthly") {
+                const normalizedLabel = normalizeMonthString(apiLabel);
                 labelIndex = allLabels.indexOf(normalizedLabel);
+              } else {
+                // For daily, use direct index if available
+                labelIndex = allLabels.indexOf(apiLabel);
               }
 
               if (labelIndex !== -1) {
@@ -307,7 +385,7 @@ const Timechart = ({ selectedDisaster }) => {
         const date = new Date(label);
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       } else if (viewType === "weekly") {
-        // For weekly view, we use the date as the start of week
+        // For weekly view, we use the date as the start of week and calculate end of week
         const date = new Date(label);
         const endOfWeek = new Date(date);
         endOfWeek.setDate(date.getDate() + 6);
@@ -401,13 +479,13 @@ const Timechart = ({ selectedDisaster }) => {
         setTimeframeInDays(30); // Last 30 days
         break;
       case "weekly":
-        setTimeframeInDays(84); // Last 12 weeks
+        setTimeframeInDays(35); // Last 5 weeks (changed from 84)
         break;
       case "monthly":
         setTimeframeInDays(365); // Last 12 months
         break;
       default:
-        setTimeframeInDays(84);
+        setTimeframeInDays(35); // Default to 5 weeks
     }
     setView(newView);
   };
