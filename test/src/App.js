@@ -56,6 +56,8 @@ function App() {
                 </div>
                 <Header />
 
+                <br />
+
                 {/* Pass selectedDisaster and setSelectedDisaster to Filters */}
                 <Filters
                     setSelectedDisaster={setSelectedDisaster}

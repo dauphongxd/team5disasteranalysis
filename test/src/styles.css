@@ -50,36 +50,40 @@ h1,h2 {
     color: #ffffff;
 }
 
+/* Buttons */
 .disaster-filters {
     display: flex;
-    gap: 10px;
     margin-bottom: 20px;
     justify-content: center;
 }
 
-.filter-button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 20px;
-    background-color: #fff;
-    border: 1px solid #1da1f2;
-    color: #1da1f2;
-    cursor: pointer;
-    transition: all 0.3s;
+/* Button styles without custom font */
+.sc-button {
+    display: inline-block;
+    border: 3px solid #1da1f2;
+    padding: 6px 25px;
+    color: #ffffff;
+    border-radius: 4px;
+    margin: 10px;
+    text-decoration: none;
+    transform: skewX(-25deg);
+    transition: all 0.3s ease;
+    background-color: #0000008a;
 }
-
-.filter-button:hover {
-    background-color: #1da1f2;
-    color: #fff;
+ 
+.sc-button:hover {
+    box-shadow: 0 0 20px rgba(132, 221, 248, 0.8); /* Increase shadow size and opacity */
+  border-color: #1da1f2;
 }
-
-.filter-button.active {
-    background-color: #1da1f2;
-    color: #fff;
+  
+.sc-button.active {
+    background-color: #84DDF8; /* Change background color when active */
     border-color: #1da1f2;
-    transform: scale(1.05); /* Optional: Slightly enlarge the button */
+    color: #000; /* Optionally change text color */
+    box-shadow: inset 0 0 5px #000; /* Optional inset shadow for pressed effect */
 }
 
+/* Map */
 .map-section {
     flex: 1;
     min-width: 0;
@@ -173,7 +177,7 @@ h1,h2 {
 }
 
 .tweet-feed::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background-color: #1b1e23;
     border-radius: 4px;
 }
 
@@ -189,12 +193,14 @@ h1,h2 {
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
-    background-color: #ffffff; /* Added background color */
+    background-color: #1b1e23;    
     border-radius: 10px;
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    color: #333; /* Text color for visibility */
+    color: #ffffff; /* Text color for visibility */
+    font-size: 14px; 
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 .tweet-media img {
@@ -235,7 +241,7 @@ h1,h2 {
 .disaster-tag {
     display: inline-block !important;
     padding: 4px 8px;
-    background-color: #ff4444;
+    background-color: #ff44448c;
     color: white;
     border-radius: 4px;
     font-size: 12px;
@@ -259,9 +265,10 @@ h1,h2 {
 
 .help-category {
     padding: 15px;
-    background-color: #f8f9fa;
+    background-color: #1b1e23;
     border-radius: 8px;
-    border-left: 4px solid #1da1f2;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
+    /*border-left: 4px solid #1da1f2;*/
 }
 
 .help-category h3 {
@@ -280,7 +287,7 @@ h1,h2 {
 }
 
 .help-category a {
-    color: #2d3436;
+    color: #ffffff;
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -352,6 +359,7 @@ h2 { font-size: 1em; }
     background-color: #1b1e23;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 /* Container for the toggle buttons */
@@ -360,33 +368,6 @@ h2 { font-size: 1em; }
     justify-content: center; /* Center the buttons horizontally */
     gap: 10px; /* Add spacing between the buttons */
     margin: 20px 0; /* Add vertical spacing around the toggle buttons */
-}
-
-/* Base style for toggle buttons */
-.toggle-button {
-    padding: 10px 20px; /* Add padding for a larger click area */
-    font-size: 16px; /* Set a readable font size */
-    font-weight: bold; /* Make the button text bold */
-    border: 2px solid #36a2eb; /* Add a border with a theme color */
-    border-radius: 50px; /* Slightly rounded corners */
-    background-color: white; /* Default background color */
-    color: #36a2eb; /* Default text color */
-    cursor: pointer; /* Show a pointer on hover */
-    transition: all 0.3s ease; /* Smooth transition for hover and active effects */
-}
-
-/* Hover effect for toggle buttons */
-.toggle-button:hover {
-    background-color: #36a2eb; /* Change background to theme color */
-    color: white; /* Change text color to white */
-}
-
-/* Active state for the selected button */
-.toggle-button.active {
-    background-color: #36a2eb; /* Active background color */
-    color: white; /* Active text color */
-    border-color: #36a2eb; /* Match border color with the background */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a subtle shadow for emphasis */
 }
 
 
@@ -1710,6 +1691,7 @@ body.performance-mode * {
     gap: 20px; /* Uniform gap between items */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 .donutchart-container {

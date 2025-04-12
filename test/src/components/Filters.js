@@ -50,7 +50,7 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
             {categoriesToDisplay.map(category => (
                 <button
                     key={category.id}
-                    className={`filter-button ${activeFilter === category.id ? "active" : ""}`}
+                    className={`sc-button ${activeFilter === category.id ? "active" : ""}`}
                     onClick={() => filterTweets(category.id)}
                 >
                     {category.label}

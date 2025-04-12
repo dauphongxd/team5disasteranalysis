@@ -529,13 +529,13 @@ const Timechart = ({ selectedDisaster }) => {
             {/*  Daily*/}
             {/*</button>*/}
             <button
-                className={`toggle-button ${view === "weekly" ? "active" : ""}`}
+                className={`sc-button ${view === "weekly" ? "active" : ""}`}
                 onClick={() => handleViewToggle("weekly")}
             >
               Weekly
             </button>
             <button
-                className={`toggle-button ${view === "monthly" ? "active" : ""}`}
+                className={`sc-button ${view === "monthly" ? "active" : ""}`}
                 onClick={() => handleViewToggle("monthly")}
             >
               Monthly
