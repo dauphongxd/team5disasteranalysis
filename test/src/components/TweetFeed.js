@@ -334,7 +334,7 @@ function TweetFeed({ selectedDisaster }) {
     return (
         <div className="tweet-section">
           <div className="map-header">
-            <h3>Disaster Tweets</h3>
+            <h3> </h3>
           </div>
           <div className="tweet-feed">
             <div className="loading-indicator">Loading disaster tweets...</div>
@@ -348,7 +348,7 @@ function TweetFeed({ selectedDisaster }) {
     return (
         <div className="tweet-section">
           <div className="map-header">
-            <h3>Disaster Tweets</h3>
+            <h3> </h3>
           </div>
           <div className="tweet-feed">
             <div className="error-message">Error: {error}</div>
@@ -362,7 +362,7 @@ function TweetFeed({ selectedDisaster }) {
   return (
       <div className="tweet-section">
         <div className="map-header">
-          <h3>Disaster Tweets</h3>
+          <h3> </h3>
         </div>
         <div className="tweet-feed" id="tweet-feed">
           {tweets.length === 0 ? (

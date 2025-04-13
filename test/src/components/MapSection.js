@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-function MapSection({ performanceMode }) {
+function MapSection({ performanceMode, showDataViewer, toggleDataViewer, NWSDataViewerComponent }) {
   const [alerts, setAlerts] = useState([]);
   const [wildfires, setWildfires] = useState([]);
   const [hurricanes, setHurricanes] = useState([]);
@@ -924,6 +924,10 @@ function MapSection({ performanceMode }) {
 
   // Toggle legend expanded/collapsed state
   const toggleLegendExpanded = () => {
+    // If collapsing the legend and data viewer is visible, also hide the data viewer
+    if (isLegendExpanded && showDataViewer) {
+      toggleDataViewer();
+    }
     setIsLegendExpanded(!isLegendExpanded);
   };
 
@@ -1016,7 +1020,27 @@ function MapSection({ performanceMode }) {
                   <span>Hurricanes ({hurricanes.length})</span>
                 </label>
               </div>
+
+              {/* NWS Data Viewer Toggle Button */}
+              <div className="layer-toggle nws-viewer-toggle">
+                <button
+                  className={`nws-legend-button ${showDataViewer ? 'active' : ''}`}
+                  onClick={toggleDataViewer}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <path d="M19 9h-14l7 7 7-7z"></path>
+                  </svg>
+                  {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
+                </button>
+              </div>
             </div>
+            
+            {/* Render NWSDataViewer component inside the legend if showDataViewer is true */}
+            {showDataViewer && NWSDataViewerComponent && (
+              <div className="legend-section nws-viewer-container">
+                <NWSDataViewerComponent />
+              </div>
+            )}
             
             <div className="legend-section">
               <h5>Alert Flag Guide</h5>
@@ -1213,12 +1237,21 @@ function MapSection({ performanceMode }) {
               <span>Wildfires: {wildfires.length}</span>
               <span>Hurricanes: {hurricanes.length}</span>
             </div>
-            <button 
-              className="legend-refresh-button collapsed-refresh" 
-              onClick={handleRefreshData}
-            >
-              Refresh
-            </button>
+            <div className="collapsed-controls">
+              <button 
+                className="legend-refresh-button collapsed-refresh" 
+                onClick={handleRefreshData}
+              >
+                Refresh
+              </button>
+            </div>
+            
+            {/* Show NWSDataViewer even in collapsed mode */}
+            {showDataViewer && NWSDataViewerComponent && (
+              <div className="collapsed-nws-viewer">
+                <NWSDataViewerComponent />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1238,7 +1271,7 @@ function MapSection({ performanceMode }) {
   return (
     <div className="map-section">
       <div className="map-header">
-        <h3>Real-time Disaster Map</h3>
+        <h3> </h3>
         {lastUpdated && (
           <div className="mobile-timestamp">
             Last updated: {lastUpdated.toLocaleString()}

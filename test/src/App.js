@@ -67,21 +67,11 @@ function App() {
 
                 <div className="main-content">
                     <div className="map-and-controls">
-                        <MapSection />
-                        
-                        <div className="nws-toggle-container">
-                            <button
-                                className={`nws-toggle-button ${showDataViewer ? 'active' : ''}`}
-                                onClick={toggleDataViewer}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                    <path d="M19 9h-14l7 7 7-7z"></path>
-                                </svg>
-                                {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
-                            </button>
-                        </div>
-                        
-                        {showDataViewer && <NWSDataViewer />}
+                        <MapSection 
+                            showDataViewer={showDataViewer} 
+                            toggleDataViewer={toggleDataViewer} 
+                            NWSDataViewerComponent={NWSDataViewer}
+                        />
                     </div>
 
                     {/* Pass selectedDisaster to TweetFeed */}
