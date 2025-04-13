@@ -11,7 +11,6 @@ from boto3.dynamodb.conditions import Key, Attr
 import logging
 from flask_socketio import SocketIO, emit
 import time
-from langdetect import detect, LangDetectException
 
 # Set up logging
 logging.basicConfig(
@@ -144,15 +143,24 @@ def notify_new_post():
     try:
         post_data = request.json
 
-        if not post_data or 'post' not in post_data:
+        if not post_data:
             return jsonify({"error": "Invalid post data"}), 400
 
-        post = post_data['post']
+        # Handle both singular 'post' and plural 'posts' formats
+        if 'post' in post_data:
+            # Single post format
+            broadcast_post(post_data['post'])
+            logger.info(f"Broadcasted single post to clients")
+        elif 'posts' in post_data:
+            # Multiple posts format
+            posts = post_data['posts']
+            for post in posts:
+                broadcast_post(post)
+            logger.info(f"Broadcasted {len(posts)} posts to clients")
+        else:
+            return jsonify({"error": "Missing 'post' or 'posts' field"}), 400
 
-        # Broadcast to relevant clients
-        broadcast_post(post)
-
-        return jsonify({"status": "success", "message": "Post broadcasted to clients"}), 200
+        return jsonify({"status": "success", "message": "Post(s) broadcasted to clients"}), 200
     except Exception as e:
         logger.error(f"Error in notify_new_post: {e}")
         return jsonify({"error": str(e)}), 500
@@ -219,126 +227,29 @@ def get_posts():
             "other": ["haze", "meteor", "unknown"]
         }
 
-        # For consistency, always use the IsDisasterIndex to get all disaster posts
-        # and then filter on the client side if needed
-        params = {
-            'IndexName': 'IsDisasterIndex',
-            'KeyConditionExpression': Key('is_disaster_str').eq('true'),
-            'Limit': limit * 3,  # Fetch more items to account for filtering
-            'ScanIndexForward': False  # Sort in descending order (newest first)
-        }
-        operation = posts_table.query
-
-        # Add pagination token if provided
-        if next_token:
-            try:
-                params['ExclusiveStartKey'] = json.loads(next_token)
-            except json.JSONDecodeError:
-                logger.error(f"Invalid next_token format: {next_token}")
-                return jsonify({"error": "Invalid pagination token"}), 400
-
-        # Execute the query or scan
-        response = operation(**params)
-
-        # Process posts with language and category filtering
-        posts = []
-        for item in response.get('Items', []):
-            try:
-                # Skip items without text
-                if 'original_text' not in item or not item['original_text']:
-                    continue
-
-                text = item['original_text']
-
-                # Skip very short texts - they're hard to detect language accurately
-                if len(text.strip()) < 5:
-                    continue
-
-                # Check language if filtering is enabled
-                if language != 'all':
-                    try:
-                        detected_lang = detect(text)
-                        # Skip if language doesn't match
-                        if detected_lang != language:
-                            continue
-                    except LangDetectException:
-                        # If language detection fails, include the post in fallback mode
-                        logger.warning(f"Language detection failed for post: {item.get('post_id')}")
-                        continue
-
-                # Handle category filtering
-                if disaster_type != 'all':
-                    item_disaster_type = item.get('disaster_type', '').lower()
-
-                    # Check if the item's disaster type matches any in the selected category
-                    if disaster_type in disaster_categories:
-                        subcategories = disaster_categories[disaster_type]
-                        match_found = False
-
-                        for subcategory in subcategories:
-                            if subcategory in item_disaster_type or item_disaster_type in subcategory:
-                                match_found = True
-                                break
-
-                        if not match_found:
-                            continue
-                    # For direct matching if not a super-category
-                    elif item_disaster_type != disaster_type.lower():
-                        continue
-
-                # Transform DynamoDB item to match expected format
-                post = {
-                    'post_id': item.get('post_id'),
-                    'original_text': item.get('original_text'),
-                    'created_at': item.get('created_at'),
-                    'disaster_type': item.get('disaster_type'),
-                    'confidence_score': item.get('confidence_score'),
-                    'username': item.get('handle'),  # Using handle as username
-                    'handle': item.get('handle'),  # Also include handle explicitly
-                    'user_id': item.get('user_id'),
-                    'display_name': item.get('display_name'),  # Add display_name
-                    'avatar_url': item.get('avatar_url'),  # Add avatar_url
-                    'location_name': item.get('location_name', ''),
-                    'media': item.get('media_urls', [])
-                }
-                posts.append(post)
-
-                # If we've reached our limit after filtering, break
-                if len(posts) >= limit:
-                    break
-
-            except Exception as e:
-                logger.error(f"Error processing post {item.get('post_id')}: {str(e)}")
-                # Continue with next post instead of failing completely
-                continue
-
-        # If we didn't reach our limit, and we have a LastEvaluatedKey, get more posts
-        # This handles the case where filtering reduced our results below the limit
-        original_last_key = response.get('LastEvaluatedKey')
-        while len(posts) < limit and 'LastEvaluatedKey' in response:
-            params['ExclusiveStartKey'] = response['LastEvaluatedKey']
-            response = operation(**params)
-
-            for item in response.get('Items', []):
+        # Function to process items to posts with filtering
+        def process_items(items, already_applied_disaster_filter=False):
+            processed_posts = []
+            for item in items:
                 try:
+                    # Skip items without text
                     if 'original_text' not in item or not item['original_text']:
                         continue
 
                     text = item['original_text']
 
+                    # Skip very short texts
                     if len(text.strip()) < 5:
                         continue
 
+                    # Check stored language field
                     if language != 'all':
-                        try:
-                            detected_lang = detect(text)
-                            if detected_lang != language:
-                                continue
-                        except LangDetectException:
+                        stored_lang = item.get('language', '')
+                        if stored_lang != language:
                             continue
 
-                    # Handle category filtering (same logic as above)
-                    if disaster_type != 'all':
+                    # Apply disaster type filtering if not already applied at the DB level
+                    if not already_applied_disaster_filter and disaster_type != 'all':
                         item_disaster_type = item.get('disaster_type', '').lower()
 
                         # Check if the item's disaster type matches any in the selected category
@@ -357,42 +268,153 @@ def get_posts():
                         elif item_disaster_type != disaster_type.lower():
                             continue
 
+                    # Transform DynamoDB item to match expected format
                     post = {
                         'post_id': item.get('post_id'),
                         'original_text': item.get('original_text'),
                         'created_at': item.get('created_at'),
                         'disaster_type': item.get('disaster_type'),
                         'confidence_score': item.get('confidence_score'),
-                        'username': item.get('handle'),
-                        'handle': item.get('handle'),
+                        'username': item.get('handle'),  # Using handle as username
+                        'handle': item.get('handle'),  # Also include handle explicitly
                         'user_id': item.get('user_id'),
                         'display_name': item.get('display_name'),
                         'avatar_url': item.get('avatar_url'),
                         'location_name': item.get('location_name', ''),
                         'media': item.get('media_urls', [])
                     }
-                    posts.append(post)
+                    processed_posts.append(post)
 
-                    # Stop if we've reached our limit
-                    if len(posts) >= limit:
-                        break
                 except Exception as e:
-                    logger.error(f"Error processing post: {e}")
+                    logger.error(f"Error processing post {item.get('post_id')}: {str(e)}")
                     continue
 
-            # Stop if we don't have more pages
-            if 'LastEvaluatedKey' not in response:
-                break
+            return processed_posts
+
+        posts = []
+        last_evaluated_key = None
+
+        # OPTIMIZATION: Choose the query approach based on the disaster type
+        if disaster_type == 'all':
+            # For 'all', use the IsDisasterIndex as before
+            params = {
+                'IndexName': 'IsDisasterIndex',
+                'KeyConditionExpression': Key('is_disaster_str').eq('true'),
+                'Limit': limit * 3,  # Fetch more items to account for filtering
+                'ScanIndexForward': False  # Sort in descending order (newest first)
+            }
+
+            # Add pagination token if provided
+            if next_token:
+                try:
+                    params['ExclusiveStartKey'] = json.loads(next_token)
+                except json.JSONDecodeError:
+                    logger.error(f"Invalid next_token format: {next_token}")
+                    return jsonify({"error": "Invalid pagination token"}), 400
+
+            # Execute the query
+            response = posts_table.query(**params)
+
+            # Process items
+            posts = process_items(response.get('Items', []))
+
+            # Save the last evaluated key for pagination
+            if 'LastEvaluatedKey' in response:
+                last_evaluated_key = response['LastEvaluatedKey']
+
+            # If we need more items, continue fetching
+            while len(posts) < limit and 'LastEvaluatedKey' in response:
+                params['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                response = posts_table.query(**params)
+
+                new_posts = process_items(response.get('Items', []))
+                posts.extend(new_posts)
+
+                if 'LastEvaluatedKey' in response:
+                    last_evaluated_key = response['LastEvaluatedKey']
+                else:
+                    break
+
+        elif disaster_type in disaster_categories:
+            # For super-categories (fire, storm, etc.), query each subcategory
+            subcategories = disaster_categories[disaster_type]
+
+            # We need to track pagination across multiple queries
+            # For now, we don't support pagination for super-categories
+            # This could be enhanced in the future
+
+            for subcategory in subcategories:
+                # Skip pagination for now (simplified approach)
+                params = {
+                    'IndexName': 'DisasterTypeIndex',
+                    'KeyConditionExpression': Key('disaster_type').eq(subcategory),
+                    'Limit': limit,  # Each subcategory gets up to 'limit' items
+                    'ScanIndexForward': False
+                }
+
+                try:
+                    subresponse = posts_table.query(**params)
+                    # Process with language filtering only (disaster type already filtered)
+                    new_posts = process_items(subresponse.get('Items', []), already_applied_disaster_filter=True)
+                    posts.extend(new_posts)
+                except Exception as subcategory_error:
+                    logger.error(f"Error querying subcategory {subcategory}: {str(subcategory_error)}")
+
+            # Sort by created_at (newest first) since we're combining from multiple queries
+            posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+            # Limit to requested number
+            posts = posts[:limit]
+
+            # We don't support pagination for super-categories in this simplified implementation
+            last_evaluated_key = None
+
+        else:
+            # For direct disaster types, use DisasterTypeIndex
+            params = {
+                'IndexName': 'DisasterTypeIndex',
+                'KeyConditionExpression': Key('disaster_type').eq(disaster_type),
+                'Limit': limit,
+                'ScanIndexForward': False
+            }
+
+            # Add pagination token if provided
+            if next_token:
+                try:
+                    params['ExclusiveStartKey'] = json.loads(next_token)
+                except json.JSONDecodeError:
+                    logger.error(f"Invalid next_token format: {next_token}")
+                    return jsonify({"error": "Invalid pagination token"}), 400
+
+            # Execute the query
+            response = posts_table.query(**params)
+
+            # Process with language filtering only (disaster type already filtered)
+            posts = process_items(response.get('Items', []), already_applied_disaster_filter=True)
+
+            # Save the last evaluated key for pagination
+            if 'LastEvaluatedKey' in response:
+                last_evaluated_key = response['LastEvaluatedKey']
+
+            # If we need more items, continue fetching
+            while len(posts) < limit and 'LastEvaluatedKey' in response:
+                params['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                response = posts_table.query(**params)
+
+                new_posts = process_items(response.get('Items', []), already_applied_disaster_filter=True)
+                posts.extend(new_posts)
+
+                if 'LastEvaluatedKey' in response:
+                    last_evaluated_key = response['LastEvaluatedKey']
+                else:
+                    break
 
         # Build the response with pagination support
         result = {'posts': posts}
 
-        # Use the last evaluated key from the most recent query
-        # Or use the original last key if we've exhausted all results
-        if 'LastEvaluatedKey' in response:
-            result['next_token'] = json.dumps(response['LastEvaluatedKey'])
-        elif original_last_key and len(posts) >= limit:
-            result['next_token'] = json.dumps(original_last_key)
+        # Add pagination token if we have more results
+        if last_evaluated_key and len(posts) >= limit:
+            result['next_token'] = json.dumps(last_evaluated_key)
 
         # Create the API response
         api_response = app.response_class(

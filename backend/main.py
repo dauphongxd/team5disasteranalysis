@@ -1,10 +1,10 @@
 import boto3
 import time
-import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import os
-import requests  # Added for API notifications
-from atproto import Client, models
+import requests
+from atproto import Client
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, RobertaConfig
 import torch.nn.functional as F
 from dotenv import load_dotenv
@@ -13,7 +13,11 @@ import logging
 import uuid
 from decimal import Decimal
 from botocore.exceptions import ClientError
+from langdetect import detect, DetectorFactory
 import threading
+
+# Set seed for langdetect to ensure consistent results
+DetectorFactory.seed = 0
 
 # Set up logging
 logging.basicConfig(
@@ -28,40 +32,52 @@ logger = logging.getLogger(__name__)
 
 # Flask API endpoint for WebSocket notifications
 # This should match your Flask API's host and port
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 NOTIFICATION_ENDPOINT = f"{API_BASE_URL}/api/notify-new-post"
 
-# Function to notify the Flask API about a new post
-def notify_api_about_new_post(post):
-    """Notify the Flask API about a new post"""
+# Notification buffer and timer
+NOTIFICATION_BUFFER = []
+NOTIFICATION_MUTEX = threading.Lock()
+LAST_NOTIFICATION_TIME = time.time()
+NOTIFICATION_INTERVAL = 15 * 60  # 15 minutes in seconds
+
+# API Rate Limit Parameters
+MAX_REQUESTS_PER_WINDOW = 3000  # Maximum requests in a 5-minute window
+RATE_LIMIT_WINDOW = 300  # 5 minutes in seconds
+REQUEST_TOKENS = MAX_REQUESTS_PER_WINDOW  # Start with full tokens
+LAST_TOKEN_REFILL = time.time()  # Last time tokens were refilled
+TOKEN_MUTEX = threading.Lock()  # Mutex for thread-safe token updates
+
+# Define disaster-related keywords for search
+DISASTER_KEYWORDS = [
+    "earthquake", "flood", "hurricane", "tornado", "tsunami",
+    "wildfire", "avalanche", "landslide", "volcano", "eruption",
+    "typhoon", "cyclone", "blizzard", "drought", "storm",
+    "fire", "disaster", "emergency", "evacuation", "damage",
+    "collapsed", "destroyed", "devastation", "casualties"
+]
+
+# File to store last processed timestamp
+LAST_PROCESSED_FILE = "last_processed.json"
+
+
+# Initialize last processed timestamps for each keyword
+def init_last_processed_times():
+    """Initialize or load last processed timestamps"""
     try:
-        # Create a JSON-serializable version of the post
-        # Convert Decimal to float for JSON serialization
-        serializable_post = {}
-        for key, value in post.items():
-            if isinstance(value, Decimal):
-                serializable_post[key] = float(value)
-            else:
-                serializable_post[key] = value
+        with open(LAST_PROCESSED_FILE, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Create default with all keywords set to current time
+        now = datetime.now(timezone.utc).isoformat()
+        return {keyword: now for keyword in DISASTER_KEYWORDS}
 
-        # Send notification to Flask API
-        payload = {
-            'post': serializable_post
-        }
 
-        response = requests.post(
-            NOTIFICATION_ENDPOINT,
-            json=payload,
-            headers={'Content-Type': 'application/json'}
-        )
-
-        if response.status_code == 200:
-            logger.info(f"Successfully notified API about new post: {post['post_id']}")
-        else:
-            logger.warning(f"Failed to notify API: {response.status_code} - {response.text}")
-
-    except Exception as e:
-        logger.error(f"Error notifying API: {e}")
+# Save last processed timestamps
+def save_last_processed_times(timestamp_dict):
+    """Save the last processed timestamps to file"""
+    with open(LAST_PROCESSED_FILE, 'w') as f:
+        json.dump(timestamp_dict, f)
 
 
 # Text cleaning
@@ -83,26 +99,22 @@ def clean_text(text):
     return text
 
 
-# Extract location from text - placeholder for future NLP implementation
-def extract_location(text):
-    """
-    Extract location name from text. Returns empty string if not found.
-
-    Note: This is a placeholder. In the future, this should be replaced with
-    a more sophisticated NLP-based location extraction model.
-    """
-    # Currently not implemented - will return empty string
-    return ""
+# Check if text is in English
+def is_english(text):
+    """Detect if text is in English"""
+    try:
+        return detect(text) == 'en'
+    except:
+        # If detection fails, assume it's not English
+        return False
 
 
 # Safe date parsing function to handle problematic ISO formats
 def safe_parse_date(date_string):
-    """
-    Safely parse date strings into datetime objects, handling various formats.
-    """
+    """Safely parse date strings into datetime objects, handling various formats."""
     try:
         # For standard ISO format
-        return datetime.datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return datetime.fromisoformat(date_string.replace('Z', '+00:00'))
     except ValueError:
         try:
             # For ISO format with too many decimal places
@@ -114,19 +126,53 @@ def safe_parse_date(date_string):
                 micros = micros.ljust(6, '0')[:6]
                 # Reconstruct the date string
                 clean_date = f"{base}.{micros}" + (timezone or '+00:00').replace('Z', '+00:00')
-                return datetime.datetime.fromisoformat(clean_date)
+                return datetime.fromisoformat(clean_date)
         except (ValueError, AttributeError):
             pass
 
         # If all else fails, use current time and log warning
         logger.warning(f"Could not parse date string: {date_string}, using current time instead.")
-        return datetime.datetime.now()
+        return datetime.now()
+
+
+# Token bucket rate limiter function
+def consume_token():
+    """
+    Consume a token from the rate limiter.
+    Returns True if a token was consumed, False if we need to wait.
+    """
+    global REQUEST_TOKENS, LAST_TOKEN_REFILL
+
+    with TOKEN_MUTEX:
+        # Refill tokens based on elapsed time
+        now = time.time()
+        elapsed = now - LAST_TOKEN_REFILL
+
+        if elapsed > 0:
+            # Calculate tokens to add: (elapsed seconds / window) * max tokens
+            new_tokens = int((elapsed / RATE_LIMIT_WINDOW) * MAX_REQUESTS_PER_WINDOW)
+
+            if new_tokens > 0:
+                REQUEST_TOKENS = min(REQUEST_TOKENS + new_tokens, MAX_REQUESTS_PER_WINDOW)
+                LAST_TOKEN_REFILL = now
+
+        # Try to consume a token
+        if REQUEST_TOKENS > 0:
+            REQUEST_TOKENS -= 1
+            remaining_percentage = (REQUEST_TOKENS / MAX_REQUESTS_PER_WINDOW) * 100
+            if remaining_percentage < 20:  # Log warning when tokens are running low
+                logger.warning(
+                    f"API rate limit tokens running low: {REQUEST_TOKENS}/{MAX_REQUESTS_PER_WINDOW} ({remaining_percentage:.1f}%)")
+            return True
+        else:
+            # Calculate time until next token will be available
+            time_to_next_token = RATE_LIMIT_WINDOW / MAX_REQUESTS_PER_WINDOW
+            logger.warning(f"Rate limit reached, need to wait {time_to_next_token:.2f} seconds")
+            return False
 
 
 # Load environment variables
 load_dotenv('.env')
-
-FEED_URI = 'at://did:plc:qiknc4t5rq7yngvz7g4aezq7/app.bsky.feed.generator/aaaelfwqlfugs'
 
 # Define table names
 USERS_TABLE = 'DisasterFeed_Users'
@@ -199,6 +245,18 @@ def init_model(model_path):
         raise
 
 
+# Function to check if a table exists
+def table_exists(dynamodb, table_name):
+    """Check if a table exists"""
+    try:
+        dynamodb.meta.client.describe_table(TableName=table_name)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            return False
+        raise
+
+
 # Function to wait until table is active
 def wait_for_table_active(dynamodb, table_name):
     """Wait until the table exists and is active"""
@@ -224,71 +282,10 @@ def wait_for_table_active(dynamodb, table_name):
         return False
 
 
-# Function to check if a table exists
-def table_exists(dynamodb, table_name):
-    """Check if a table exists"""
-    try:
-        dynamodb.meta.client.describe_table(TableName=table_name)
-        return True
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceNotFoundException':
-            return False
-        raise
-
-
-# Function to delete a table if it exists
-def delete_table_if_exists(dynamodb, table_name):
-    """Delete a table if it exists"""
-    try:
-        if table_exists(dynamodb, table_name):
-            table = dynamodb.Table(table_name)
-            table.delete()
-            logger.info(f"Deleting table {table_name}...")
-
-            # Wait for table to be deleted with timeout
-            for attempt in range(1, 13):  # Try for up to 1 minute
-                try:
-                    dynamodb.meta.client.describe_table(TableName=table_name)
-                    logger.info(f"Waiting for table {table_name} to be deleted... Attempt {attempt}/12")
-                    time.sleep(5)
-                except ClientError as e:
-                    if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                        logger.info(f"Table {table_name} deleted")
-                        return True
-
-            logger.error(f"Table {table_name} did not delete within the timeout period")
-            return False
-        return False
-    except Exception as e:
-        logger.error(f"Error deleting table {table_name}: {e}")
-        return False
-
-
-def enable_streams_on_existing_table(dynamodb_client, table_name):
-    """Enable DynamoDB Streams on an existing table"""
-    try:
-        response = dynamodb_client.update_table(
-            TableName=table_name,
-            StreamSpecification={
-                'StreamEnabled': True,
-                'StreamViewType': 'NEW_AND_OLD_IMAGES'
-            }
-        )
-        logger.info(f"Enabled streams on {table_name}")
-        return response['TableDescription']['LatestStreamArn']
-    except Exception as e:
-        logger.error(f"Error enabling streams on {table_name}: {e}")
-        return None
-
 # Function to create all required tables
 def create_tables(dynamodb, force_recreate=False):
     """Create all required tables"""
     created_tables = []
-
-    # Optionally force recreation of tables
-    if force_recreate:
-        for table_name in [POSTS_TABLE, USERS_TABLE, WEATHER_TABLE]:
-            delete_table_if_exists(dynamodb, table_name)
 
     # Create Users table if it doesn't exist
     if not table_exists(dynamodb, USERS_TABLE):
@@ -423,7 +420,7 @@ def put_user(dynamodb, user_data):
                         'handle': user_data['handle'],
                         'display_name': user_data.get('display_name', ''),
                         'avatar_url': user_data.get('avatar_url', ''),
-                        'created_at': datetime.datetime.now().isoformat()
+                        'created_at': datetime.now().isoformat()
                     }
                 )
                 logger.info(f"User stored: {user_data['handle']}")
@@ -440,6 +437,81 @@ def put_user(dynamodb, user_data):
     except Exception as e:
         logger.error(f"Error storing user: {e}")
         return None
+
+
+# Function to notify the Flask API about new posts (batched every 15 minutes)
+def notify_api_about_new_post(post):
+    """Add post to notification buffer, to be sent at 15-minute intervals"""
+    try:
+        with NOTIFICATION_MUTEX:
+            # Add post to buffer
+            NOTIFICATION_BUFFER.append(post)
+            logger.debug(
+                f"Added post {post['post_id']} to notification buffer (current size: {len(NOTIFICATION_BUFFER)})")
+    except Exception as e:
+        logger.error(f"Error adding post to notification buffer: {e}")
+
+
+# Function to send all buffered notifications
+def send_buffered_notifications():
+    """Send all buffered notifications to the API"""
+    global LAST_NOTIFICATION_TIME
+
+    with NOTIFICATION_MUTEX:
+        if not NOTIFICATION_BUFFER:
+            return  # Nothing to send
+
+        posts_to_send = NOTIFICATION_BUFFER.copy()
+        NOTIFICATION_BUFFER.clear()
+
+    try:
+        # Create a serializable version of the posts
+        serializable_posts = []
+        for post in posts_to_send:
+            # Convert Decimal to float for JSON serialization
+            serializable_post = {}
+            for key, value in post.items():
+                if isinstance(value, Decimal):
+                    serializable_post[key] = float(value)
+                else:
+                    serializable_post[key] = value
+            serializable_posts.append(serializable_post)
+
+        # Send notification to Flask API
+        payload = {
+            'posts': serializable_posts
+        }
+
+        response = requests.post(
+            NOTIFICATION_ENDPOINT,
+            json=payload,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if response.status_code == 200:
+            logger.info(f"Successfully notified API about {len(serializable_posts)} new posts")
+        else:
+            logger.warning(f"Failed to notify API: {response.status_code} - {response.text}")
+
+        # Update last notification time
+        LAST_NOTIFICATION_TIME = time.time()
+
+    except Exception as e:
+        logger.error(f"Error sending notifications to API: {e}")
+        # Put the posts back in buffer
+        with NOTIFICATION_MUTEX:
+            NOTIFICATION_BUFFER.extend(posts_to_send)
+
+
+# Function to check if it's time to send notifications
+def check_notification_timer():
+    """Check if it's time to send notifications (15-minute interval)"""
+    current_time = time.time()
+    if current_time - LAST_NOTIFICATION_TIME >= NOTIFICATION_INTERVAL:
+        logger.info("Notification interval reached - sending buffered posts")
+        send_buffered_notifications()
+        return True
+    return False
 
 
 # Function to insert post into DynamoDB
@@ -481,7 +553,8 @@ def put_post(dynamodb, post_data):
             'disaster_type': post_data.get('disaster_type', 'unknown'),
             'confidence_score': confidence_score,
             'is_disaster': is_disaster,
-            'is_disaster_str': is_disaster_str  # Add string version for GSI
+            'is_disaster_str': is_disaster_str,  # Add string version for GSI
+            'language': post_data.get('language', 'en')  # Store detected language
         }
 
         # Add media_urls if present (and set has_media based on media_urls)
@@ -495,60 +568,13 @@ def put_post(dynamodb, post_data):
         posts_table.put_item(Item=item)
         logger.info(f"Post stored: {post_data['post_id']}")
 
-        # Notify API about the new post
+        # Add to notification buffer (will be sent at 15-minute intervals)
         notify_api_about_new_post(item)
 
         return post_data['post_id']
 
     except Exception as e:
         logger.error(f"Error storing post: {e}")
-        return None
-
-
-# Function to insert weather data into DynamoDB
-def put_weather_data(dynamodb, weather_data):
-    """Store weather data in DynamoDB"""
-    try:
-        weather_table = dynamodb.Table(WEATHER_TABLE)
-
-        # Generate a UUID for the weather data
-        weather_id = str(uuid.uuid4())
-
-        # Convert numeric values to Decimal for DynamoDB
-        for field in ['temperature', 'humidity', 'wind_speed', 'latitude', 'longitude']:
-            if field in weather_data and weather_data[field] is not None:
-                weather_data[field] = Decimal(str(weather_data[field]))
-
-        # Format the collected_at as ISO string
-        collected_at = datetime.datetime.now().isoformat()
-        if 'collected_at' in weather_data:
-            if isinstance(weather_data['collected_at'], datetime.datetime):
-                collected_at = weather_data['collected_at'].isoformat()
-            else:
-                collected_at = weather_data['collected_at']
-
-        # Build the item
-        item = {
-            'weather_id': weather_id,
-            'post_id': weather_data['post_id'],
-            'location_name': weather_data.get('location_name', ''),
-            'latitude': weather_data.get('latitude', Decimal('0')),
-            'longitude': weather_data.get('longitude', Decimal('0')),
-            'weather_condition': weather_data.get('weather_condition', ''),
-            'temperature': weather_data.get('temperature', Decimal('0')),
-            'humidity': weather_data.get('humidity', Decimal('0')),
-            'wind_speed': weather_data.get('wind_speed', Decimal('0')),
-            'collected_at': collected_at
-        }
-
-        # Put the item in the table
-        weather_table.put_item(Item=item)
-        logger.info(f"Weather data stored for post: {weather_data['post_id']}")
-
-        return weather_id
-
-    except Exception as e:
-        logger.error(f"Error storing weather data: {e}")
         return None
 
 
@@ -569,100 +595,215 @@ def predict_disaster(tokenizer, model, id2label, text):
         return "unknown", 0.0
 
 
-# Real-time Processing Function
-def process_feed(dynamodb, tokenizer, model, id2label, client):
+# Ensure Bluesky session is valid
+def ensure_bluesky_session(client, max_retries=3):
     """
-    Process only new Bluesky posts that arrive after the application starts running.
-    No exit condition needed - simplified version.
+    Ensure the Bluesky client session is valid by refreshing it if needed.
+
+    Args:
+        client: The Bluesky client
+        max_retries: Maximum number of login retries
+
+    Returns:
+        bool: True if session is valid, False if all retries failed
     """
-    log_file_path = "disaster_feed_log.txt"
-    json_file_path = "posts.json"
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Try a simple profile request to test if session is valid
+            handle = os.getenv('API_HANDLE')
 
-    # Set a start time to filter posts
-    start_time = datetime.datetime.now(datetime.timezone.utc)
-    start_time_str = start_time.isoformat().replace('+00:00', 'Z')
-    logger.info(f"Starting to monitor for new posts after: {start_time_str}")
+            # Use token for this request
+            if not consume_token():
+                # Wait for token to become available
+                time.sleep(1)
+                continue
 
-    # Initialize seen post tracker to avoid duplicates
-    seen_posts = set()
+            client.app.bsky.actor.get_profile({'actor': handle})
+            logger.info("Bluesky session is valid")
+            return True
+        except Exception as e:
+            logger.warning(f"Session validation failed (attempt {attempt}/{max_retries}): {e}")
 
-    # Polling configuration
-    poll_interval = 10  # Seconds between polls
+            # Try to create a new session
+            try:
+                logger.info("Attempting to refresh Bluesky session...")
+
+                # Use token for this request
+                if not consume_token():
+                    # Wait for token to become available
+                    time.sleep(1)
+                    continue
+
+                client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
+                logger.info("Successfully refreshed Bluesky session")
+                return True
+            except Exception as login_error:
+                logger.error(f"Failed to refresh session (attempt {attempt}/{max_retries}): {login_error}")
+                if attempt < max_retries:
+                    # Exponential backoff between retries
+                    wait_time = 2 ** attempt
+                    logger.info(f"Waiting {wait_time} seconds before retry...")
+                    time.sleep(wait_time)
+
+    logger.error("All session refresh attempts failed")
+    return False
+
+
+# Search Bluesky for posts with keywords
+def search_bluesky_for_keywords(client, keyword, since_time, max_posts=10, max_retries=3):
+    """
+    Search Bluesky for posts containing a keyword since a specific time
+
+    Args:
+        client: The Bluesky client
+        keyword: Keyword to search for
+        since_time: ISO-formatted time string to search from
+        max_posts: Maximum number of posts to return
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        Response object or None if failed
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Check if we have a token available
+            if not consume_token():
+                # If no token available, wait a bit before continuing
+                token_wait = RATE_LIMIT_WINDOW / MAX_REQUESTS_PER_WINDOW
+                logger.warning(f"Rate limit reached, waiting {token_wait:.2f}s for next token")
+                time.sleep(token_wait + 0.1)  # Add a small buffer
+                continue
+
+            # Format the since_time correctly for the API
+            if isinstance(since_time, datetime):
+                since_str = since_time.replace(microsecond=0).isoformat()
+                if since_str.endswith('+00:00'):
+                    since_str = since_str.replace('+00:00', 'Z')
+            else:
+                # If it's already a string, ensure it's in the correct format
+                since_str = since_time
+                if since_str.endswith('+00:00'):
+                    since_str = since_str.replace('+00:00', 'Z')
+
+            logger.info(f"Searching for '{keyword}' since {since_str}")
+
+            # Make the API request with rate limiting
+            response = client.app.bsky.feed.search_posts(
+                params={'q': keyword, 'limit': max_posts, 'cursor': None, 'since': since_str}
+            )
+
+            return response
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error searching for '{keyword}' (attempt {attempt}/{max_retries}): {error_msg}")
+
+            # Check if this looks like a rate limit error
+            if "rate limit" in error_msg.lower() or "429" in error_msg:
+                logger.warning(f"Rate limit detected. Waiting longer for retry.")
+                time.sleep(30)  # Wait longer for rate limit errors
+            elif attempt < max_retries:
+                # For other errors, use exponential backoff
+                wait_time = min(30, 2 ** attempt)
+                logger.info(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+
+            # Check if we need to refresh the session
+            if "auth" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                if ensure_bluesky_session(client):
+                    logger.info("Session refreshed, retrying search")
+                    continue
+
+    logger.error(f"All {max_retries} attempts failed for keyword '{keyword}'")
+    return None
+
+
+# Process new posts with rate limiting
+def process_keyword_feed(dynamodb, tokenizer, model, id2label, client):
+    """
+    Process posts containing keywords with proper rate limiting
+    """
+    json_file_path = "disaster_posts.json"
+    processed_ids = set()  # Track processed post IDs to avoid duplicates
+
+    # Load or initialize last processed timestamps
+    last_processed_times = init_last_processed_times()
 
     # Load existing posts data if file exists
     try:
         with open(json_file_path, "r", encoding="utf-8") as json_file:
             posts_data = json.load(json_file)
+            # Add existing post IDs to processed set
+            for post in posts_data:
+                processed_ids.add(post.get("uri", ""))
     except (FileNotFoundError, json.JSONDecodeError):
         posts_data = []
 
-    # Store the initial file content length for comparison
     initial_post_count = len(posts_data)
     logger.info(f"Loaded {initial_post_count} existing posts from JSON file")
 
-    # Open the log file
-    with open(log_file_path, "a", encoding='utf-8') as log_file:
-        try:
-            logger.info("Starting new posts monitoring...")
-
-            # Main processing loop
-            while True:  # No exit condition needed
+    try:
+        # Round-robin through keywords
+        while True:
+            for keyword in DISASTER_KEYWORDS:
                 try:
-                    # Simple fetch without cursor - we'll filter by date
-                    response = client.app.bsky.feed.get_feed(
-                        params={
-                            'feed': FEED_URI,
-                            'limit': 30
-                        }
-                    )
+                    # Get the last processed time for this keyword
+                    since_time = last_processed_times.get(keyword)
 
-                    new_posts = response.feed
-                    logger.info(f"Fetched {len(new_posts)} posts to check for new content")
+                    # Convert string to datetime if needed
+                    if isinstance(since_time, str):
+                        since_time = datetime.fromisoformat(since_time.replace('Z', '+00:00'))
 
-                    # Count how many new posts we actually process
-                    processed_count = 0
+                    # Search for posts with this keyword
+                    response = search_bluesky_for_keywords(client, keyword, since_time)
 
-                    # Process only posts that are newer than our start time and we haven't seen before
-                    for post in new_posts:
+                    if not response or not hasattr(response, 'posts') or not response.posts:
+                        logger.info(f"No new posts found for keyword: {keyword}")
+                        continue
+
+                    logger.info(f"Found {len(response.posts)} posts for keyword: {keyword}")
+
+                    # Track newest post time to update last_processed_times
+                    newest_time = since_time
+                    new_post_count = 0
+
+                    # Process each post
+                    for post in response.posts:
                         try:
-                            # Extract post URI for duplicate checking
-                            uri = post.post.uri
+                            uri = post.uri
 
-                            # Skip if we've already seen this post
-                            if uri in seen_posts:
+                            # Skip if we've already processed this post
+                            if uri in processed_ids:
                                 continue
 
-                            # Add to seen posts set
-                            seen_posts.add(uri)
+                            # Extract post data
+                            text = post.record.text
 
-                            # Parse the post's indexed_at timestamp
-                            indexed_at = safe_parse_date(post.post.indexed_at)
-
-                            # Skip posts that are older than when we started
-                            indexed_at_timestamp = indexed_at.replace(tzinfo=datetime.timezone.utc)
-                            if indexed_at_timestamp < start_time:
-                                # This post is from before we started running
+                            # Check if post is in English
+                            if not is_english(text):
+                                logger.info(f"Skipping non-English post: {uri}")
                                 continue
 
-                            # We've found a genuinely new post - process it
-                            processed_count += 1
+                            # Add to processed set to avoid duplication
+                            processed_ids.add(uri)
 
-                            # Extract all needed data
-                            did = post.post.author.did
-                            handle = post.post.author.handle
-                            display_name = post.post.author.display_name or ''
-                            avatar_url = post.post.author.avatar or ''
-                            text = post.post.record.text
+                            # Extract other fields
+                            did = post.author.did
+                            handle = post.author.handle
+                            display_name = post.author.display_name or ''
+                            avatar_url = post.author.avatar or ''
                             cleaned_text = clean_text(text)
-                            created_at = safe_parse_date(post.post.record.created_at)
+                            created_at = safe_parse_date(post.record.created_at)
+                            indexed_at = safe_parse_date(post.indexed_at)
 
-                            # For now, we're not extracting location
-                            location_name = ""
+                            # Update newest time if needed
+                            if indexed_at > newest_time:
+                                newest_time = indexed_at
 
                             # Check for media
                             media_urls = []
-                            if hasattr(post.post.record, 'embed') and hasattr(post.post.record.embed, 'images'):
-                                for image in post.post.record.embed.images:
+                            if hasattr(post.record, 'embed') and hasattr(post.record.embed, 'images'):
+                                for image in post.record.embed.images:
                                     if hasattr(image, 'image') and hasattr(image.image, 'ref') and hasattr(
                                             image.image.ref, 'link'):
                                         image_url = f"https://cdn.bsky.app/img/feed_fullsize/{image.image.ref.link}"
@@ -674,7 +815,7 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
 
                             # Two different thresholds
                             threshold = 0.1  # Lower threshold for JSON/logging
-                            db_threshold = 0.8  # Higher threshold for database
+                            db_threshold = 0.95  # Higher threshold for database
 
                             # Determine disaster status
                             is_disaster = confidence_score >= threshold
@@ -700,15 +841,16 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
                                 'clean_text': cleaned_text,
                                 'created_at': created_at,
                                 'indexed_at': indexed_at,
-                                'location_name': location_name,
+                                'location_name': "",
                                 'media_urls': media_urls,
                                 'disaster_type': predicted_label,
                                 'confidence_score': confidence_score,
-                                'is_disaster': is_disaster_db
+                                'is_disaster': is_disaster_db,
+                                'language': 'en'  # We've verified it's English
                             }
                             put_post(dynamodb, post_data)
 
-                            # Prepare post data for JSON (for the web interface)
+                            # Prepare post data for JSON
                             json_post_data = {
                                 "uri": uri,
                                 "handle": handle,
@@ -721,338 +863,132 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
                                 "predicted_disaster_type": predicted_label,
                                 "confidence_score": confidence_score,
                                 "is_disaster": is_disaster,
-                                "location": location_name
+                                "location": ""
                             }
 
                             # Add to posts data (at the beginning for newest first)
                             posts_data.insert(0, json_post_data)
-
-                            # Log the new post
-                            current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                            log_entry = f"[{current_time}] NEW POST: {text}\n"
-                            if not is_disaster:
-                                log_entry += f"Predicted: Uncertain/Non-Disaster (Confidence: {confidence_score:.4f})\n\n"
-                            else:
-                                log_entry += f"Predicted: {predicted_label} (Confidence: {confidence_score:.4f})\n\n"
-
-                            log_file.write(log_entry)
-                            log_file.flush()  # Ensure it's written immediately
+                            new_post_count += 1
 
                             logger.info(f"Processed new post: {uri}")
 
                         except Exception as e:
-                            logger.error(f"Error processing post: {e}")
+                            logger.error(f"Error processing individual post: {e}")
                             continue
 
-                    # Report on new posts
-                    if processed_count > 0:
-                        logger.info(f"Processed {processed_count} truly new posts")
+                    # Update last processed time for this keyword
+                    if newest_time > since_time:
+                        last_processed_times[keyword] = newest_time.isoformat()
+                        save_last_processed_times(last_processed_times)
+                        logger.info(f"Updated last processed time for '{keyword}' to {newest_time.isoformat()}")
 
-                        # Save the posts data to JSON regularly
-                        # Limit the number of posts we keep to avoid huge files
+                    # Report on new posts
+                    if new_post_count > 0:
+                        logger.info(f"Processed {new_post_count} new posts for keyword: {keyword}")
+
+                        # Limit the number of posts we keep in the JSON file
                         max_json_posts = 1000
                         if len(posts_data) > max_json_posts:
                             posts_data = posts_data[:max_json_posts]
 
+                        # Save posts to JSON
                         with open(json_file_path, "w", encoding="utf-8") as json_file:
                             json.dump(posts_data, json_file, indent=4, ensure_ascii=False)
 
                         logger.info(f"Saved {len(posts_data)} posts to JSON")
-                    else:
-                        logger.info("No new posts found in this polling cycle")
 
                 except Exception as e:
                     error_text = str(e)
+                    logger.error(f"Error in keyword search for '{keyword}': {error_text}")
 
                     # Check if this is an authentication/session error
                     if 'auth' in error_text.lower() or 'session' in error_text.lower():
-                        logger.warning(f"Possible session error: {error_text}")
-                        try:
-                            # Try to refresh the session
-                            logger.info("Attempting to refresh session...")
-                            client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
-                            logger.info("Successfully refreshed session")
-                        except Exception as login_error:
-                            logger.error(f"Failed to refresh session: {login_error}")
-                            # Wait a bit longer after session errors
-                            time.sleep(30)
-                    else:
-                        logger.error(f"Error fetching or processing posts: {error_text}")
-                        # Normal error backoff
-                        time.sleep(15)
+                        ensure_bluesky_session(client)
 
-                # Use a consistent polling interval to avoid rate limits and provide predictability
-                logger.info(f"Waiting {poll_interval} seconds until next check for new posts...")
-                time.sleep(poll_interval)
+                    continue  # Move to next keyword
 
-        except KeyboardInterrupt:
-            logger.info("Post monitoring interrupted by user")
+                # Brief delay between keywords to help with rate limiting
+                time.sleep(1)
 
-        except Exception as e:
-            logger.error(f"Fatal error in post monitoring: {e}")
+            # Check if it's time to send notifications
+            check_notification_timer()
 
-        finally:
-            # Always save the latest data before exiting
-            try:
-                with open(json_file_path, "w", encoding="utf-8") as json_file:
-                    json.dump(posts_data, json_file, indent=4, ensure_ascii=False)
-                logger.info("Saved posts data before exit")
-            except Exception as e:
-                logger.error(f"Error saving final data: {e}")
-
-
-def ensure_bluesky_session(client, max_retries=3):
-    """
-    Ensure the Bluesky client session is valid by refreshing it if needed.
-
-    Args:
-        client: The Bluesky client
-        max_retries: Maximum number of login retries
-
-    Returns:
-        bool: True if session is valid, False if all retries failed
-    """
-    for attempt in range(1, max_retries + 1):
-        try:
-            # Try a simple profile request to test if session is valid
-            handle = os.getenv('API_HANDLE')
-            client.app.bsky.actor.get_profile({'actor': handle})
-            logger.info("Bluesky session is valid")
-            return True
-        except Exception as e:
-            logger.warning(f"Session validation failed (attempt {attempt}/{max_retries}): {e}")
-
-            # Try to create a new session
-            try:
-                logger.info("Attempting to refresh Bluesky session...")
-                client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
-                logger.info("Successfully refreshed Bluesky session")
-                return True
-            except Exception as login_error:
-                logger.error(f"Failed to refresh session (attempt {attempt}/{max_retries}): {login_error}")
-                if attempt < max_retries:
-                    # Exponential backoff between retries
-                    wait_time = 2 ** attempt
-                    logger.info(f"Waiting {wait_time} seconds before retry...")
-                    time.sleep(wait_time)
-
-    logger.error("All session refresh attempts failed")
-    return False
-
-
-def get_feed_with_reconnect(client, params, max_retries=3):
-    """
-    Get feed with automatic session reconnection on failure.
-
-    Args:
-        client: The Bluesky client
-        params: Parameters for the get_feed request
-        max_retries: Maximum number of retries
-
-    Returns:
-        The feed response or None if all retries failed
-    """
-    for attempt in range(1, max_retries + 1):
-        try:
-            return client.app.bsky.feed.get_feed(params=params)
-        except Exception as e:
-            error_text = str(e)
-
-            # Check if this seems like an auth/session error
-            if 'auth' in error_text.lower() or 'authent' in error_text.lower() or 'session' in error_text.lower():
-                logger.warning(f"Possible session error on attempt {attempt}/{max_retries}: {error_text}")
-
-                # Try to refresh the session
-                if ensure_bluesky_session(client):
-                    logger.info("Session refreshed, retrying request")
-                    continue
-                else:
-                    logger.error("Failed to refresh session, cannot continue")
-                    return None
-
-            # For non-session errors, just retry with backoff
-            if attempt < max_retries:
-                wait_time = 2 ** attempt
-                logger.warning(f"Request failed (attempt {attempt}/{max_retries}): {error_text}")
-                logger.info(f"Waiting {wait_time} seconds before retry...")
-                time.sleep(wait_time)
-            else:
-                logger.error(f"All retries failed: {error_text}")
-                return None
-
-    return None
-
-#  method when the main feed approach fails
-def get_timeline_posts(client, tokenizer, model, id2label, dynamodb, max_posts=50):
-    """
-    Alternative method to get posts from the user's timeline when custom feed fails.
-
-    Args:
-        client: The Bluesky client
-        tokenizer, model, id2label: ML model components
-        dynamodb: DynamoDB client
-        max_posts: Maximum number of posts to process
-
-    Returns:
-        List of processed posts
-    """
-    logger.info("Using timeline fallback method to retrieve posts")
-    processed_posts = []
-
-    try:
-        # Get posts from user's timeline instead of custom feed
-        response = client.app.bsky.feed.get_timeline({'limit': max_posts})
-
-        if not response or not hasattr(response, 'feed'):
-            logger.warning("No posts found in timeline")
-            return []
-
-        logger.info(f"Found {len(response.feed)} posts in timeline")
-
-        # Process posts similar to the main feed processing
-        for post in response.feed:
-            try:
-                # Extract post details (similar to main process)
-                uri = post.post.uri
-                did = post.post.author.did
-                handle = post.post.author.handle
-                display_name = post.post.author.display_name or ''
-                avatar_url = post.post.author.avatar or ''
-                text = post.post.record.text
-                cleaned_text = clean_text(text)
-
-                # Check if this is potentially a disaster-related post
-                predicted_label, confidence_score = predict_disaster(tokenizer, model, id2label, cleaned_text)
-
-                # Only process posts that might be disaster-related (saves resources)
-                if confidence_score >= 0.1:
-                    # Safely parse dates
-                    created_at = safe_parse_date(post.post.record.created_at)
-                    indexed_at = safe_parse_date(post.post.indexed_at)
-
-                    # For now, we're not extracting location
-                    location_name = ""
-
-                    # Check for media
-                    media_urls = []
-                    if hasattr(post.post.record, 'embed') and hasattr(post.post.record.embed, 'images'):
-                        for image in post.post.record.embed.images:
-                            if hasattr(image, 'image') and hasattr(image.image, 'ref') and hasattr(image.image.ref,
-                                                                                                   'link'):
-                                image_url = f"https://cdn.bsky.app/img/feed_fullsize/{image.image.ref.link}"
-                                media_urls.append(image_url)
-
-                    # Two different thresholds
-                    threshold = 0.1  # Lower threshold for JSON/logging
-                    db_threshold = 0.7  # Higher threshold for database
-
-                    # Determine disaster status
-                    is_disaster = confidence_score >= threshold
-                    is_disaster_db = confidence_score >= db_threshold
-
-                    # Store in database if it passes the threshold
-                    if is_disaster:
-                        # Store user
-                        user_data = {
-                            'user_id': did,
-                            'handle': handle,
-                            'display_name': display_name,
-                            'avatar_url': avatar_url
-                        }
-                        put_user(dynamodb, user_data)
-
-                        # Store post
-                        post_data = {
-                            'post_id': uri,
-                            'user_id': did,
-                            'handle': handle,
-                            'display_name': display_name,
-                            'avatar_url': avatar_url,
-                            'original_text': text,
-                            'clean_text': cleaned_text,
-                            'created_at': created_at,
-                            'indexed_at': indexed_at,
-                            'location_name': location_name,
-                            'media_urls': media_urls,
-                            'disaster_type': predicted_label,
-                            'confidence_score': confidence_score,
-                            'is_disaster': is_disaster_db
-                        }
-                        put_post(dynamodb, post_data)  # This now calls notify_api_about_new_post internally
-
-                        # Add to processed posts
-                        processed_posts.append({
-                            "uri": uri,
-                            "handle": handle,
-                            "display_name": display_name,
-                            "text": text,
-                            "clean_text": cleaned_text,
-                            "timestamp": created_at.isoformat(),
-                            "avatar": avatar_url,
-                            "media": media_urls,
-                            "predicted_disaster_type": predicted_label,
-                            "confidence_score": confidence_score,
-                            "is_disaster": is_disaster,
-                            "location": location_name
-                        })
-
-                        logger.info(f"Processed potential disaster post from timeline: {uri}")
-            except Exception as e:
-                logger.error(f"Error processing timeline post: {e}")
-                continue
-
-        return processed_posts
-
-    except Exception as e:
-        logger.error(f"Error fetching timeline: {e}")
-        return []
-
-
-def process_feed_with_fallbacks(dynamodb, tokenizer, model, id2label, client):
-    """
-    Process feed with fallback mechanisms for greater reliability
-    """
-    # Set up counters and state
-    main_feed_failures = 0
-    last_successful_time = time.time()
-
-    while True:
-        try:
-            # Try the main real-time feed approach
-            process_feed(dynamodb, tokenizer, model, id2label, client)
-        except Exception as e:
-            logger.error(f"Error in main feed processing: {e}")
-            main_feed_failures += 1
-
-            # If we've had multiple failures or it's been a while since success
-            if main_feed_failures > 3 or (time.time() - last_successful_time) > 1800:  # 30 minutes
-                logger.warning("Multiple feed failures. Trying alternative approach.")
-
-                try:
-                    # Use timeline fallback approach
-                    posts = get_timeline_posts(client, tokenizer, model, id2label, dynamodb)
-
-                    if posts:
-                        logger.info(f"Successfully processed {len(posts)} posts using fallback method")
-                        main_feed_failures = 0  # Reset failure counter
-                        last_successful_time = time.time()
-                    else:
-                        logger.warning("Fallback method also failed to retrieve posts")
-                except Exception as fallback_error:
-                    logger.error(f"Error in fallback processing: {fallback_error}")
-
-            # Exponential backoff on repeated failures
-            wait_time = min(300, 30 * (2 ** min(main_feed_failures, 5)))
-            logger.info(f"Waiting {wait_time} seconds before retry...")
+            # After processing all keywords, wait before next round
+            # This time is adjustable based on how aggressive you want to be
+            wait_time = 60  # 1 minute between full cycles
+            logger.info(f"Completed full keyword cycle. Waiting {wait_time} seconds until next cycle...")
             time.sleep(wait_time)
 
+    except KeyboardInterrupt:
+        logger.info("Post monitoring interrupted by user")
 
+    except Exception as e:
+        logger.error(f"Fatal error in post monitoring: {e}")
+
+    finally:
+        # Send any remaining notifications
+        if NOTIFICATION_BUFFER:
+            logger.info(f"Sending {len(NOTIFICATION_BUFFER)} buffered notifications before exit")
+            send_buffered_notifications()
+
+        # Always save the latest data before exiting
+        try:
+            with open(json_file_path, "w", encoding="utf-8") as json_file:
+                json.dump(posts_data, json_file, indent=4, ensure_ascii=False)
+            logger.info("Saved posts data before exit")
+
+            # Save last processed times
+            save_last_processed_times(last_processed_times)
+            logger.info("Saved last processed times before exit")
+        except Exception as e:
+            logger.error(f"Error saving final data: {e}")
+
+
+# Notification thread function
+def notification_thread_func():
+    """Background thread to send notifications at regular intervals"""
+    while True:
+        try:
+            # Sleep for a shorter time to check more frequently
+            time.sleep(60)  # Check every minute
+
+            # Check if it's time to send notifications
+            if check_notification_timer():
+                logger.info("Notification interval reached (checked from notification thread)")
+        except Exception as e:
+            logger.error(f"Error in notification thread: {e}")
+
+
+# Session monitoring thread
+def session_monitor_thread(client):
+    """Background thread to keep the Bluesky session alive"""
+    while True:
+        try:
+            time.sleep(600)  # Check every 10 minutes
+            logger.info("Performing session health check")
+
+            # Check if we have a token available
+            if consume_token():
+                handle = os.getenv('API_HANDLE')
+                client.app.bsky.actor.get_profile({'actor': handle})
+                logger.info("Session is still valid")
+            else:
+                logger.info("Token not available for session check, will try later")
+        except Exception as e:
+            logger.warning(f"Session error in monitor thread: {e}")
+            try:
+                if consume_token():
+                    logger.info("Refreshing session from background thread")
+                    client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
+                    logger.info("Session refreshed successfully")
+            except Exception as login_error:
+                logger.error(f"Failed to refresh session: {login_error}")
 
 
 # Main function
 def main(force_recreate_tables=False):
     """
-    Main entry point for the application - simplified version without shutdown handling
+    Main entry point for the application
 
     Args:
         force_recreate_tables (bool): If True, delete and recreate all tables.
@@ -1062,74 +998,33 @@ def main(force_recreate_tables=False):
         dynamodb = init_dynamodb()
 
         # Initialize AI model
-        MODEL_PATH = r'F:\AI SCHOOL\checkpoint-1800'
+        MODEL_PATH = os.getenv('MODEL_PATH', 'checkpoint-1800')  # Get from env var or use default
         tokenizer, model, id2label = init_model(MODEL_PATH)
 
-        # List existing tables
-        logger.info("Listing existing tables...")
-        list_tables(dynamodb)
-
-        # Create tables only if needed or if force_recreate_tables is True
+        # Create tables if needed
         logger.info("Ensuring tables exist and are active...")
         if not create_tables(dynamodb, force_recreate=force_recreate_tables):
             logger.error("Failed to create tables. Exiting.")
             return
-
-        try:
-            logger.info("Enabling DynamoDB Streams on Posts table...")
-            dynamodb_client = boto3.client('dynamodb',
-                                           region_name=os.getenv('AWS_REGION', 'us-east-1'),
-                                           aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                                           aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
-
-            stream_arn = enable_streams_on_existing_table(dynamodb_client, POSTS_TABLE)
-            if stream_arn:
-                logger.info(f"Stream ARN: {stream_arn}")
-                # Save the Stream ARN to a file for later use
-                with open('stream_arn.txt', 'w') as f:
-                    f.write(stream_arn)
-                logger.info("Stream ARN saved to stream_arn.txt")
-            else:
-                logger.error("Failed to enable streams on Posts table")
-        except Exception as e:
-            logger.error(f"Error setting up DynamoDB Streams: {e}")
-
-        # List tables again to confirm creation
-        logger.info("Tables after initialization:")
-        list_tables(dynamodb)
 
         # Set up Bluesky client
         logger.info("Setting up Bluesky client...")
         client = Client()
         client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
 
-        # Start a simple session monitoring thread
-        def keep_session_alive():
-            """Background thread to keep the Bluesky session alive"""
-            while True:
-                try:
-                    time.sleep(600)  # Check every 10 minutes
-                    logger.info("Performing session health check")
-                    handle = os.getenv('API_HANDLE')
-                    client.app.bsky.actor.get_profile({'actor': handle})
-                    logger.info("Session is still valid")
-                except Exception as e:
-                    logger.warning(f"Session error in monitor thread: {e}")
-                    try:
-                        logger.info("Refreshing session from background thread")
-                        client.login(os.getenv('API_HANDLE'), os.getenv('API_PW'))
-                        logger.info("Session refreshed successfully")
-                    except Exception as login_error:
-                        logger.error(f"Failed to refresh session: {login_error}")
-
-        # Start the thread as daemon so it exits when main thread exits
-        session_thread = threading.Thread(target=keep_session_alive, daemon=True)
+        # Start session monitoring thread
+        session_thread = threading.Thread(target=session_monitor_thread, args=(client,), daemon=True)
         session_thread.start()
         logger.info("Started session monitoring thread")
 
-        # Process new posts
-        logger.info("Starting new posts only mode...")
-        process_feed_with_fallbacks(dynamodb, tokenizer, model, id2label, client)
+        # Start notification thread
+        notification_thread = threading.Thread(target=notification_thread_func, daemon=True)
+        notification_thread.start()
+        logger.info("Started notification thread (15-minute intervals)")
+
+        # Process posts with keywords
+        logger.info("Starting keyword-based post monitoring...")
+        process_keyword_feed(dynamodb, tokenizer, model, id2label, client)
 
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")
