@@ -50,52 +50,58 @@ h1,h2 {
     color: #ffffff;
 }
 
+/* Buttons */
 .disaster-filters {
     display: flex;
-    gap: 10px;
     margin-bottom: 20px;
     justify-content: center;
 }
 
-.filter-button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 20px;
-    background-color: #fff;
-    border: 1px solid #1da1f2;
-    color: #1da1f2;
-    cursor: pointer;
-    transition: all 0.3s;
+/* Button styles without custom font */
+.sc-button {
+    display: inline-block;
+    border: 3px solid #1da1f2;
+    padding: 6px 25px;
+    color: #ffffff;
+    border-radius: 4px;
+    margin: 10px;
+    text-decoration: none;
+    transform: skewX(-25deg);
+    transition: all 0.3s ease;
+    background-color: #0000008a;
 }
-
-.filter-button:hover {
-    background-color: #1da1f2;
-    color: #fff;
+ 
+.sc-button:hover {
+    box-shadow: 0 0 20px rgba(132, 221, 248, 0.8); /* Increase shadow size and opacity */
+  border-color: #1da1f2;
 }
-
-.filter-button.active {
-    background-color: #1da1f2;
-    color: #fff;
+  
+.sc-button.active {
+    background-color: #84DDF8; /* Change background color when active */
     border-color: #1da1f2;
-    transform: scale(1.05); /* Optional: Slightly enlarge the button */
+    color: #000; /* Optionally change text color */
+    box-shadow: inset 0 0 5px #000; /* Optional inset shadow for pressed effect */
 }
 
+/* Map */
 .map-section {
     flex: 1;
     min-width: 0;
     position: relative;
     margin-top: 0; /* Reset margin */
     padding-top: 0; /* Ensure no top padding */
+    margin-bottom: 0;
 }
 
 #map {
     width: 100%;
+    background-color: #f5f5f5;
     height: 600px;
     border-radius: 10px;
-    margin: 0; /* Ensure no margin */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    background-color: #f5f5f5;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     position: relative;
+    margin-bottom: 15px;
 }
 
 .performance-map {
@@ -173,7 +179,7 @@ h1,h2 {
 }
 
 .tweet-feed::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background-color: #1b1e23;
     border-radius: 4px;
 }
 
@@ -189,12 +195,14 @@ h1,h2 {
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
-    background-color: #ffffff; /* Added background color */
+    background-color: #1b1e23;    
     border-radius: 10px;
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    color: #333; /* Text color for visibility */
+    color: #ffffff; /* Text color for visibility */
+    font-size: 14px; 
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 .tweet-media img {
@@ -235,7 +243,7 @@ h1,h2 {
 .disaster-tag {
     display: inline-block !important;
     padding: 4px 8px;
-    background-color: #ff4444;
+    background-color: #ff44448c;
     color: white;
     border-radius: 4px;
     font-size: 12px;
@@ -259,9 +267,10 @@ h1,h2 {
 
 .help-category {
     padding: 15px;
-    background-color: #f8f9fa;
+    background-color: #1b1e23;
     border-radius: 8px;
-    border-left: 4px solid #1da1f2;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
+    /*border-left: 4px solid #1da1f2;*/
 }
 
 .help-category h3 {
@@ -280,7 +289,7 @@ h1,h2 {
 }
 
 .help-category a {
-    color: #2d3436;
+    color: #ffffff;
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -352,6 +361,7 @@ h2 { font-size: 1em; }
     background-color: #1b1e23;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 /* Container for the toggle buttons */
@@ -360,33 +370,6 @@ h2 { font-size: 1em; }
     justify-content: center; /* Center the buttons horizontally */
     gap: 10px; /* Add spacing between the buttons */
     margin: 20px 0; /* Add vertical spacing around the toggle buttons */
-}
-
-/* Base style for toggle buttons */
-.toggle-button {
-    padding: 10px 20px; /* Add padding for a larger click area */
-    font-size: 16px; /* Set a readable font size */
-    font-weight: bold; /* Make the button text bold */
-    border: 2px solid #36a2eb; /* Add a border with a theme color */
-    border-radius: 50px; /* Slightly rounded corners */
-    background-color: white; /* Default background color */
-    color: #36a2eb; /* Default text color */
-    cursor: pointer; /* Show a pointer on hover */
-    transition: all 0.3s ease; /* Smooth transition for hover and active effects */
-}
-
-/* Hover effect for toggle buttons */
-.toggle-button:hover {
-    background-color: #36a2eb; /* Change background to theme color */
-    color: white; /* Change text color to white */
-}
-
-/* Active state for the selected button */
-.toggle-button.active {
-    background-color: #36a2eb; /* Active background color */
-    color: white; /* Active text color */
-    border-color: #36a2eb; /* Match border color with the background */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a subtle shadow for emphasis */
 }
 
 
@@ -753,13 +736,66 @@ body.performance-mode * {
     }
 }
 
-/* NWS Data Viewer styles */
+/* NWS Data Viewer Toggle and Container */
+.nws-toggle-container {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.nws-toggle-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nws-toggle-button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.nws-toggle-button.active {
+    background-color: #e74c3c;
+}
+
+.nws-toggle-button.active:hover {
+    background-color: #c0392b;
+}
+
+.nws-toggle-button svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.3s ease;
+}
+
+.nws-toggle-button.active svg {
+    transform: rotate(180deg);
+}
+
+/* NWS Data Viewer Component */
 .nws-data-viewer {
+    margin-top: 15px;
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 800;
     background-color: #f8f9fa;
     border-radius: 8px;
     padding: 20px;
-    margin: 20px 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+    transform-origin: top center;
+    animation: slideDown 0.3s ease-out forwards;
+    border-top: 3px solid #3498db;
 }
 
 .nws-viewer-header {
@@ -797,10 +833,11 @@ body.performance-mode * {
 }
 
 .nws-data-summary {
-    background-color: #e9ecef;
-    padding: 15px;
+    background-color: rgba(52, 152, 219, 0.05);
+    padding: 10px;
     border-radius: 6px;
-    margin-bottom: 20px;
+    margin: 10px 0;
+    border-left: 3px solid #3498db;
 }
 
 .nws-alerts-list {
@@ -906,7 +943,6 @@ body.performance-mode * {
     color: white;
 }
 
-
 @media (max-width: 768px) {
     .nws-viewer-header {
         flex-direction: column;
@@ -931,57 +967,13 @@ body.performance-mode * {
     }
 }
 
-/* App Controls */
-.app-controls {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin: 20px 0;
-}
-
-.control-button {
-    background-color: #3498db;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s, transform 0.2s;
-}
-
-.control-button:hover {
-    background-color: #2980b9;
-    transform: translateY(-2px);
-}
-
-.control-button.active {
-    background-color: #e74c3c;
-}
-
-.control-button.active:hover {
-    background-color: #c0392b;
-}
-
-@media (max-width: 768px) {
-    .app-controls {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .control-button {
-        width: 100%;
-        max-width: 300px;
-    }
-}
-
 /* NWS Data Statistics */
 .nws-data-stats {
-    background-color: #f8f9fa;
-    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 10px;
     border-radius: 6px;
-    margin-bottom: 20px;
-    border: 1px solid #e9ecef;
+    margin: 15px 0;
+    border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .nws-data-stats h3 {
@@ -1050,32 +1042,175 @@ body.performance-mode * {
     }
 }
 
-/* Standalone Disaster Map Legend */
+/* Enhanced Disaster Map Legend Styles */
 .disaster-map-legend {
-    background-color: white;
-    padding: 20px;
+    position: relative;
+    top: auto;
+    right: auto;
+    z-index: 1000;
+    background-color: rgba(248, 249, 250, 0.95);
     border-radius: 8px;
-    margin-top: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    width: 100%;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    max-height: 80vh; /* Limit height and add scrolling if needed */
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced styling for expanded legend - Modified to remove collapsing functionality */
+.disaster-map-legend.expanded {
+    width: 100%;
+}
+
+/* Compact styling for collapsed legend - Modified to show minimum height instead of width */
+.disaster-map-legend.collapsed {
+    height: auto;
+    padding: 10px;
+    width: 100%;
+}
+
+/* Remove backdrop effect since legend is now below map */
+.disaster-map-legend.expanded::before {
+    display: none;
+}
+
+/* Mobile responsiveness adjustments */
+@media (max-width: 768px) {
+  .disaster-map-legend {
+    position: relative;
+    top: auto;
+    right: auto;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+}
+
+.legend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.legend-toggle-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: #333;
+}
+
+.legend-toggle-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.disaster-map-legend.collapsed .legend-toggle-button {
+    color: #3498db;
+    animation: pulse-hint 2s ease-in-out 1;
+}
+
+@keyframes pulse-hint {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.legend-toggle-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.collapsed-legend-summary {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.collapsed-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 0;
+    align-items: center;
+}
+
+.collapsed-controls {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 0;
+}
+
+.collapsed-refresh {
+    padding: 5px 10px !important;
+    font-size: 0.9em !important;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.collapsed-refresh:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .disaster-map-legend h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
     color: #333;
-    font-size: 1.2rem;
+    font-size: 1.1em;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+}
+
+.timestamp {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.auto-update-note {
+    font-size: 0.8rem;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 10px;
 }
 
 .legend-section {
-    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.legend-section:last-child {
+    border-bottom: none;
 }
 
 .legend-section h5 {
-    margin-bottom: 10px;
-    color: #555;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+    margin-bottom: 12px;
+    color: #333;
+    font-weight: 600;
     font-size: 1rem;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 5px;
+    display: inline-block;
 }
 
 .layer-toggle {
@@ -1117,27 +1252,437 @@ body.performance-mode * {
     font-size: 0.9rem;
 }
 
-.timestamp {
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 5px;
+/* Flag Guide Styles */
+.flag-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.auto-update-note {
+.flag-example-row {
+    display: flex;
+    gap: 15px;
+}
+
+.flag-example {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 120px;
+}
+
+.mini-flag {
+    width: 24px;
+    height: 16px;
+    background-color: red;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border-radius: 2px;
+    clip-path: polygon(0 0, 100% 0, 100% 50%, 80% 100%, 0 100%);
+    position: relative;
+    margin-left: 8px;
+}
+
+.mini-flag::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 0;
+    height: 24px;
+    width: 2px;
+    background-color: #333;
+}
+
+/* Severity and Type Stats Styles */
+.severity-stats, .type-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.severity-item, .type-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.severity-label, .type-label {
+    width: 80px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+}
+
+.severity-bar-container, .type-bar-container {
+    flex: 1;
+    height: 16px;
+    background-color: #f1f1f1;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    min-width: 100px;
+}
+
+.severity-bar, .type-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.severity-count, .type-count {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: #333;
+    text-shadow: 0 0 2px white;
+}
+
+.type-label .legend-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.more-types-note {
     font-size: 0.8rem;
-    color: #888;
-    font-style: italic;
-    margin-bottom: 10px;
+    color: #666;
+    text-align: center;
+    margin-top: 5px;
 }
 
+/* Legend Footer Styles */
+.legend-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.legend-refresh-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.legend-refresh-button:hover {
+    background-color: #2980b9;
+}
+
+/* Media Queries for Responsive Legend */
 @media (max-width: 768px) {
     .disaster-map-legend {
-        padding: 15px;
+        padding: 12px;
     }
 
-    .legend-section {
-        margin-top: 15px;
+    .disaster-map-legend.expanded {
+        max-height: 70vh;
     }
+
+    .flag-example-row {
+        flex-direction: column;
+        gap: 5px;
+    }
+      
+    .severity-label, .type-label {
+        width: 70px;
+        font-size: 0.8rem;
+    }
+    
+    .severity-bar-container, .type-bar-container {
+        min-width: 80px;
+    }
+}
+  
+@media (min-width: 992px) {
+    .disaster-map-legend {
+        max-width: 100%;
+    }
+    
+    .disaster-map-legend.expanded {
+        max-width: 100%;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        transform: translateY(-80px);
+    }
+}
+    /* Enhanced Flag marker styles */
+    .flag-marker {
+        position: relative;
+        width: 30px;
+        height: 40px;
+        z-index: 1000; /* Make flags appear above other map elements */
+        transform-origin: bottom left;
+      }
+    
+      .flag-pole {
+        position: absolute;
+        left: 5px;
+        top: 0;
+        width: 3px;
+        height: 40px;
+        background-color: #333;
+        border-radius: 1px;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .flag-banner {
+        position: absolute;
+        top: 5px;
+        left: 8px;
+        width: 20px;
+        height: 15px;
+        background-color: red;
+        clip-path: polygon(0 0, 100% 0, 100% 50%, 80% 100%, 0 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+    
+      /* Hover effects for better interactivity */
+      .flag-marker:hover {
+        z-index: 1001; /* Bring to front when hovered */
+        transform: scale(1.2);
+      }
+    
+      .flag-marker:hover .flag-banner {
+        filter: brightness(1.2);
+      }
+    
+      /* Pulsing animations for flags */
+      .pulse-normal {
+        animation: pulse-normal 3s infinite;
+      }
+    
+      .pulse-urgent {
+        animation: pulse-urgent 1s infinite;
+      }
+    
+      @keyframes pulse-normal {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+    
+      @keyframes pulse-urgent {
+        0% {
+          transform: scale(1);
+          filter: brightness(1);
+        }
+        50% {
+          transform: scale(1.2);
+          filter: brightness(1.5);
+        }
+        100% {
+          transform: scale(1);
+          filter: brightness(1);
+        }
+      }
+    
+      /* Urgent indicator for time-sensitive alerts */
+      .urgent-indicator {
+        position: absolute;
+        top: 2px;
+        right: -5px;
+        width: 8px;
+        height: 8px;
+        background-color: #ff0000;
+        border-radius: 50%;
+        animation: blink 0.8s infinite;
+      }
+    
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+    
+      /* Alert flag icon container */
+      .alert-flag-icon {
+        background: transparent;
+        border: none;
+      }
+    
+      /* Alert Popup Styling */
+      .alert-popup-content {
+        font-family: 'Arial', sans-serif;
+        max-width: 300px;
+        overflow-wrap: break-word;
+      }
+    
+      .alert-popup-header {
+        font-size: 16px;
+        font-weight: bold;
+        color: #ff0000;
+        margin-bottom: 8px;
+        text-align: center;
+        padding: 5px;
+        background-color: #fff3f3;
+        border-radius: 4px;
+      }
+    
+      .alert-popup-title {
+        font-size: 15px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+    
+      .alert-popup-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+    
+      .alert-severity {
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+    
+      .alert-location {
+        font-style: italic;
+        color: #666;
+      }
+    
+      .alert-popup-time {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 8px;
+        border-top: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        padding: 5px 0;
+      }
+    
+      .alert-popup-instructions {
+        font-size: 13px;
+        line-height: 1.4;
+        color: #333;
+        margin: 8px 0;
+        padding: 5px;
+        background-color: #f8f9fa;
+        border-left: 3px solid #007bff;
+        border-radius: 2px;
+      }
+    
+      .alert-popup-link {
+        display: inline-block;
+        margin-top: 8px;
+        color: #fff;
+        background-color: #007bff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: bold;
+        transition: background-color 0.2s;
+      }
+    
+      .alert-popup-link:hover {
+        background-color: #0056b3;
+        text-decoration: none;
+      }
+
+      /* Marker Cluster Styles */
+  .alert-cluster-icon {
+    background: transparent !important;
+  }
+  
+  .cluster-icon {
+    background-color: rgba(0, 120, 255, 0.8);
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 0 0 2px white, 0 0 5px 2px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+  }
+  
+  .cluster-small {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+  
+  .cluster-medium {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  
+  .cluster-large {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+    background-color: rgba(255, 30, 30, 0.8);
+  }
+  
+  /* Custom MarkerCluster Overrides */
+  .marker-cluster-small {
+    background-color: rgba(181, 226, 140, 0.8);
+  }
+  
+  .marker-cluster-small div {
+    background-color: rgba(110, 204, 57, 0.8);
+  }
+  
+  .marker-cluster-medium {
+    background-color: rgba(241, 211, 87, 0.8);
+  }
+  
+  .marker-cluster-medium div {
+    background-color: rgba(240, 194, 12, 0.8);
+  }
+  
+  .marker-cluster-large {
+    background-color: rgba(253, 156, 115, 0.8);
+  }
+  
+  .marker-cluster-large div {
+    background-color: rgba(241, 128, 23, 0.8);
+  }
+  
+  .marker-cluster {
+    background-clip: padding-box;
+    border-radius: 20px;
+  }
+  
+  .marker-cluster div {
+    width: 30px;
+    height: 30px;
+    margin-left: 5px;
+    margin-top: 5px;
+    text-align: center;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Donut Chart */
@@ -1151,6 +1696,7 @@ body.performance-mode * {
     gap: 20px; /* Uniform gap between items */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
 }
 
 .donutchart-container {
@@ -1444,4 +1990,467 @@ html {
 /* When animations are disabled */
 .animations-disabled .app-footer h3 {
     animation: none !important;
+}
+
+.tweet-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.connection-status {
+    font-size: 0.9rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.connection-status.connected {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    border: 1px solid #2ecc71;
+}
+
+.connection-status.disconnected {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+/* Animation for "Live" status */
+@keyframes live-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+.connection-status.connected::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #2ecc71;
+    margin-right: 5px;
+    animation: live-pulse 2s infinite;
+}
+
+.refresh-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.refresh-button:hover {
+    background-color: #2980b9;
+}
+
+@keyframes newTweetAnimation {
+    0% {
+        background-color: rgba(29, 161, 242, 0.3);
+        transform: translateX(-5px);
+    }
+    50% {
+        background-color: rgba(29, 161, 242, 0.2);
+        transform: translateX(0);
+    }
+    100% {
+        background-color: #ffffff;
+        transform: translateX(0);
+    }
+}
+
+.tweet-container.new-tweet {
+    animation: newTweetAnimation 2s ease-out forwards;
+}
+
+/* Add a subtle border to new tweets */
+.tweet-container.new-tweet {
+    border-left: 4px solid #1da1f2;
+}
+
+.map-and-controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    .app-controls {
+        justify-content: center;
+        margin: 10px 0 20px 0;
+    }
+
+    .control-button {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hide old app-controls */
+.app-controls {
+    display: none;
+}
+
+.control-button {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .nws-toggle-container {
+        justify-content: center;
+    }
+
+    .nws-toggle-button {
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+}
+
+/* Add these styles to your styles.css file */
+
+.click-instructions {
+    text-align: center;
+    margin-top: 10px;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.click-instructions small {
+    color: #cccccc;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* NWS Legend Button Styles */
+.nws-legend-button {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 15px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: all 0.2s ease;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 1000;
+}
+
+.nws-legend-button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nws-legend-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Small version of NWS button for collapsed state */
+.nws-legend-button-small {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    padding: 6px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.nws-legend-button-small:hover {
+    background-color: #2980b9;
+    transform: scale(1.1);
+}
+
+.nws-legend-button-small:active {
+    transform: scale(0.95);
+}
+
+/* NWS Button Icon */
+.nws-button-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.nws-legend-button-small .nws-button-icon {
+    margin-right: 0;
+    font-size: 14px;
+}
+
+/* Container for collapsed controls */
+.collapsed-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Enhanced NWS Data Viewer Styles for overlay effect - Modified to appear inside the legend */
+.nws-data-viewer {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    position: relative;
+    z-index: 1600; /* Higher than the legend's z-index (1500) */
+    background-color: rgba(248, 249, 250, 0.98);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transform-origin: top center;
+    animation: slideDown 0.3s ease-out forwards;
+    border-top: 3px solid #3498db;
+    max-height: 60vh;
+    overflow-y: auto;
+    /* Remove backdrop effect as it's now inside the legend */
+}
+
+/* Remove the backdrop effect for the NWS Data Viewer */
+.nws-data-viewer::before {
+    display: none; /* Hide the backdrop */
+}
+
+/* For larger screens, adjust positioning to be inside the legend */
+@media (min-width: 768px) {
+    .nws-data-viewer {
+        position: relative; /* Changed from absolute to relative */
+        left: auto;
+        right: auto;
+        margin: 15px 0;
+        width: 100%; /* Take full width of parent */
+    }
+}
+
+/* Toggle legend expanded/collapsed buttons - Modified to still show important info */
+.legend-toggle-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: #333;
+}
+
+/* Remove animation since we're not encouraging collapsing */
+.legend-toggle-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scale(1.1);
+}
+
+/* Modify collapsed state to still show important content */
+.collapsed-legend-summary {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* Adjust collapsed stats to be more visible */
+.collapsed-stats {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 15px;
+    row-gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* Keep controls visible all the time */
+.collapsed-controls {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* New container for NWS viewer inside legend */
+.nws-viewer-container {
+  margin-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 20px;
+}
+
+/* When the NWS viewer is inside the collapsed legend */
+.collapsed-nws-viewer {
+  margin-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+  width: 100%;
+}
+
+/* Adjust spacing in collapsed mode */
+.collapsed-legend-summary + .collapsed-nws-viewer {
+  margin-top: 20px;
+}
+
+/* Adjust the NWS data viewer to fit better inside the legend */
+.collapsed-nws-viewer .nws-data-viewer,
+.nws-viewer-container .nws-data-viewer {
+  margin: 0;
+  padding: 0; 
+  box-shadow: none;
+  border-radius: 0;
+  border-top: none;
+  max-height: none;
+  background-color: transparent;
+}
+
+/* Style adjustments for the viewer header inside the legend */
+.collapsed-nws-viewer .nws-viewer-header,
+.nws-viewer-container .nws-viewer-header {
+  padding: 10px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Make the title smaller when inside the legend */
+.collapsed-nws-viewer .nws-viewer-header h2,
+.nws-viewer-container .nws-viewer-header h2 {
+  font-size: 1.2em;
+  margin: 0 0 10px 0;
+}
+
+/* Adjust controls when in the collapsed/expanded legend */
+.collapsed-nws-viewer .nws-viewer-controls,
+.nws-viewer-container .nws-viewer-controls {
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Adjust the filter control for better fit in the legend */
+.collapsed-nws-viewer .filter-control,
+.nws-viewer-container .filter-control {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Adjust select box size */
+.collapsed-nws-viewer .filter-control select,
+.nws-viewer-container .filter-control select {
+  width: 100%;
+}
+
+/* Scale down alert items in the legend */
+.collapsed-nws-viewer .nws-alert-item,
+.nws-viewer-container .nws-alert-item {
+  margin-bottom: 8px;
+}
+
+/* Make sure the legend scrolls if it gets too tall */
+.disaster-map-legend.expanded {
+  overflow-y: auto;
+  max-height: 80vh;
+}
+
+/* Mobile responsiveness adjustments */
+@media (max-width: 768px) {
+  .disaster-map-legend {
+    position: relative;
+    top: auto;
+    right: auto;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .disaster-map-legend.expanded,
+  .disaster-map-legend.collapsed {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Adjust the NWS data viewer for mobile */
+  .nws-data-viewer {
+    max-height: 50vh;
+  }
+  
+  /* Stack elements vertically in mobile */
+  .collapsed-controls {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  /* Adjust the legend sections for better mobile display */
+  .legend-section {
+    padding-bottom: 10px;
+  }
+}
+
+/* NWS Data Viewer container adjustments */
+.nws-viewer-container .nws-data-viewer, 
+.collapsed-nws-viewer .nws-data-viewer {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+/* Specific NWS data viewer styles for legend display */
+.nws-data-summary {
+  background-color: rgba(52, 152, 219, 0.05);
+  padding: 10px;
+  border-radius: 6px;
+  margin: 10px 0;
+  border-left: 3px solid #3498db;
+}
+
+/* Style the stats section within the NWS viewer */
+.nws-data-stats {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  border-radius: 6px;
+  margin: 15px 0;
+  background-color: rgba(255, 255, 255, 0.7);
 }

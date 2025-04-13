@@ -100,7 +100,7 @@ function NWSDataViewer() {
     return (
       <div className="nws-data-viewer error">
         <p>{error}</p>
-        <button onClick={fetchNWSData}>Retry</button>
+        <button onClick={fetchNWSData} className="retry-button">Retry</button>
       </div>
     );
   }

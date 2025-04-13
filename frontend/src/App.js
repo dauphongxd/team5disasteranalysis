@@ -10,6 +10,7 @@ import Timechart from "./components/Timechart";
 import Donutchart from "./components/Donutchart";
 import api from "./services/api"; // Import your existing API service
 import "./styles.css";
+import HelpSection from "./components/HelpSection";
 
 function App() {
     const [selectedDisaster, setSelectedDisaster] = useState("all");
@@ -54,14 +55,8 @@ function App() {
                     <div className="earth"></div>
                 </div>
                 <Header />
-                <div className="app-controls">
-                    <button
-                        className={`control-button ${showDataViewer ? 'active' : ''}`}
-                        onClick={toggleDataViewer}
-                    >
-                        {showDataViewer ? 'Hide NWS Data Viewer' : 'Show NWS Data Viewer'}
-                    </button>
-                </div>
+
+                <br />
 
                 {/* Pass selectedDisaster and setSelectedDisaster to Filters */}
                 <Filters
@@ -70,10 +65,14 @@ function App() {
                     availableTypes={disasterTypes}
                 />
 
-                {showDataViewer && <NWSDataViewer />}
-
                 <div className="main-content">
-                    <MapSection />
+                    <div className="map-and-controls">
+                        <MapSection 
+                            showDataViewer={showDataViewer} 
+                            toggleDataViewer={toggleDataViewer} 
+                            NWSDataViewerComponent={NWSDataViewer}
+                        />
+                    </div>
 
                     {/* Pass selectedDisaster to TweetFeed */}
                     <TweetFeed selectedDisaster={selectedDisaster} />
@@ -84,8 +83,12 @@ function App() {
                     <Timechart selectedDisaster={selectedDisaster} />
                 </div>
 
+                <div>
+                    <HelpSection selectedDisaster={selectedDisaster}/>
+                </div>
+
                 {/* Pass selectedDisaster to Donutchart */}
-                <Donutchart selectedDisaster={selectedDisaster} />
+                <Donutchart selectedDisaster={selectedDisaster}/>
             </div>
 
             {/* Replace HelpSection with Footer */}

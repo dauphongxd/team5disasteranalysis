@@ -10,10 +10,11 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
     }, [selectedDisaster]);
 
     // Default disaster categories - will be used when API doesn't return specific types
+    // Updated to use underscores instead of spaces for consistency with backend
     const defaultCategories = [
         { id: "all", label: "All" },
-        { id: "fire", label: "Wildfire", includes: ["wild fire", "bush fire", "forest fire"] },
-        { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust storm", "hurricane", "tornado", "typhoon"] },
+        { id: "fire", label: "Fire", includes: ["wild_fire", "bush_fire", "forest_fire"] },
+        { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"] },
         { id: "earthquake", label: "Earthquake", includes: ["earthquake"] },
         { id: "tsunami", label: "Tsunami", includes: ["tsunami"] },
         { id: "volcano", label: "Volcano", includes: ["volcano"] },
@@ -30,26 +31,16 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
         setSelectedDisaster(disasterType);
     };
 
-    // Determine which categories to display based on available types
+    // Helper function to normalize disaster types (handles both underscore and space formats)
+    const normalizeDisasterType = (type) => {
+        if (!type) return '';
+        return String(type).toLowerCase().replace(/ /g, '_');
+    };
+
+    // Modified to always show all categories
     const getCategoriesToDisplay = () => {
-        // If no available types from API, use default categories
-        if (!availableTypes || availableTypes.length === 0) {
-            return defaultCategories;
-        }
-
-        // Otherwise, use the categories that have matching types in the API response
-        return defaultCategories.filter(category => {
-            // "All" category is always shown
-            if (category.id === "all") return true;
-
-            // For other categories, check if any of their included types are in availableTypes
-            if (category.includes) {
-                return category.includes.some(type => availableTypes.includes(type));
-            }
-
-            // If the category doesn't have includes, check if its ID matches any available types
-            return availableTypes.includes(category.id);
-        });
+        // Always return all default categories
+        return defaultCategories;
     };
 
     const categoriesToDisplay = getCategoriesToDisplay();
@@ -59,7 +50,7 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
             {categoriesToDisplay.map(category => (
                 <button
                     key={category.id}
-                    className={`filter-button ${activeFilter === category.id ? "active" : ""}`}
+                    className={`sc-button ${activeFilter === category.id ? "active" : ""}`}
                     onClick={() => filterTweets(category.id)}
                 >
                     {category.label}
