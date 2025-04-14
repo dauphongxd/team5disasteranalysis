@@ -515,17 +515,11 @@ def predict_disaster(tokenizer, model, id2label, text):
         logger.error(f"Error predicting disaster: {e}")
         return "unknown", 0.0
 
-MAX_POSTS_PER_HOUR = 100
-
 # Real-time Processing Function
 def process_feed(dynamodb, tokenizer, model, id2label, client):
-    """Process posts with rate limiting (100 posts per hour)"""
+    """Process posts without rate limiting"""
     log_file_path = "disaster_feed.log"
     json_file_path = "posts.json"
-    
-    # Rate limiting variables
-    current_hour = datetime.now().hour
-    posts_this_hour = 0
     
     # Polling configuration
     poll_interval = 60  # Seconds between polls
@@ -542,36 +536,15 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
     
     with open(log_file_path, "a", encoding='utf-8') as log_file:
         try:
-            logger.info("Starting keyword-based post monitoring with rate limiting (100 posts/hour)...")
+            logger.info("Starting keyword-based post monitoring...")
             
             while True:
-                # Check if we've crossed into a new hour
-                now = datetime.now()
-                if now.hour != current_hour:
-                    current_hour = now.hour
-                    posts_this_hour = 0
-                    logger.info(f"New hour started - reset post counter (current hour: {current_hour})")
-                
-                # Check if we've reached our hourly limit
-                if posts_this_hour >= MAX_POSTS_PER_HOUR:
-                    logger.info(f"Reached hourly limit of {MAX_POSTS_PER_HOUR} posts. Waiting until next hour...")
-                    # Calculate seconds until next hour
-                    next_hour = (now.replace(minute=0, second=0, microsecond=0) + 
-                                timedelta(hours=1))
-                    wait_seconds = (next_hour - now).total_seconds()
-                    time.sleep(wait_seconds)
-                    continue
-                
                 try:
                     processed_in_cycle = set()
-                    remaining_posts = MAX_POSTS_PER_HOUR - posts_this_hour
                     
                     # Search for each keyword
-                    for keyword in DISASTER_KEYWORDS:
-                        if remaining_posts <= 0:
-                            break
-                            
-                        logger.info(f"Searching for posts containing: {keyword} (remaining posts this hour: {remaining_posts})")
+                    for keyword in DISASTER_KEYWORDS:                            
+                        logger.info(f"Searching for posts containing: {keyword}")
                         response = search_bluesky_for_keywords(client, keyword)
                         
                         if not response or not hasattr(response, 'posts'):
@@ -580,11 +553,8 @@ def process_feed(dynamodb, tokenizer, model, id2label, client):
                         
                         logger.info(f"Found {len(response.posts)} posts for keyword: {keyword}")
                         
-                        # Process each post until we reach our limit
-                        for post in response.posts:
-                            if posts_this_hour >= MAX_POSTS_PER_HOUR:
-                                break
-                                
+                        # Process each post
+                        for post in response.posts:                            
                             try:
                                 uri = post.uri
                                 if uri in processed_in_cycle:
@@ -770,7 +740,7 @@ def ensure_bluesky_session(client, max_retries=3):
 
 # Obtains posts using a search from keywords.
 def search_bluesky_for_keywords(client, keyword, hours=3, max_retries=3):
-    """Search Bluesky for posts with retry logic"""
+    """Search Bluesky for posts with retry logic and English language filter"""
     for attempt in range(1, max_retries + 1):
         try:
             # Calculate the time window
@@ -783,9 +753,14 @@ def search_bluesky_for_keywords(client, keyword, hours=3, max_retries=3):
             
             logger.info(f"Searching for '{keyword}' since {since_str}")
             
-            # Make the API request
+            # Make the API request with English language filter
             response = client.app.bsky.feed.search_posts(
-                params={'q': keyword, 'limit': 4, 'since': since_str}
+                params={
+                    'q': keyword,
+                    'limit': 100,  # Increased limit since we removed hourly limit
+                    'since': since_str,
+                    'lang': "en"  # Explicit English language filter
+                }
             )
             
             if response and hasattr(response, 'posts'):
