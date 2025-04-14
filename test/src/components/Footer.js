@@ -1,5 +1,8 @@
 // components/Footer.js
 import React from "react";
+import githubLogo from "./github.svg";
+import email from "./mail.svg";
+
 
 function Footer({ selectedDisaster = "all" }) {
     // Add emergency hotlines that are always shown
@@ -13,7 +16,7 @@ function Footer({ selectedDisaster = "all" }) {
     return (
         <footer className="app-footer">
             <div className="footer-content">
-                <div className="emergency-resources">
+                <div className="emergency-row">
                     <div className="resources-column emergency-hotlines">
                         <h3>Emergency Hotlines</h3>
                         <ul>
@@ -30,6 +33,23 @@ function Footer({ selectedDisaster = "all" }) {
                             ))}
                         </ul>
                     </div>
+                    <div className="connect-section">
+                        <h3>Connect with Us</h3>
+                        <div className="about-info">
+                            <p>Learn more about our team and our projects.</p>
+                        </div>
+                        <div className="logo-container">
+                            <a href="https://github.com/dauphongxd/team5disasteranalysis" target="_blank" rel="noopener noreferrer" className="logo-link">
+                                <img src={githubLogo} alt="GitHub Logo" className="logo" />
+                            </a> 
+                            <a href="" target="_blank" rel="noopener noreferrer" className="logo-link">
+                                <img src={email} alt="GitHub Logo" className="logo" />
+                            </a>
+                        </div>
+                        
+                    </div>
+                            
+                    
                 </div>
 
                 <div className="footer-info">
@@ -44,6 +64,7 @@ function Footer({ selectedDisaster = "all" }) {
                 </div>
             </div>
         </footer>
+
     );
 }
 
