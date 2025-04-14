@@ -139,6 +139,9 @@ const DonutChart = () => {
         count: superCategoryCounts[category] || 0
       }));
 
+      // Sort superCategoryData by count in descending order
+      superCategoryData.sort((a, b) => b.count - a.count);
+
       // Save the ordered categories to the ref so we can use it in click handler
       categoryMapRef.current = superCategoryData;
 
@@ -241,13 +244,15 @@ const DonutChart = () => {
         borderColor: 'rgba(255, 255, 255, 0.3)',
         borderWidth: 1,
         callbacks: {
-          // Add category name to tooltip for debugging
-          afterLabel: function(context) {
-            if (categoryMapRef.current && context.dataIndex < categoryMapRef.current.length) {
-              return `Category: ${categoryMapRef.current[context.dataIndex].category}`;
-            }
-            return '';
-          }
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.raw || 0;
+            const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+            const percentage = ((value / total) * 100).toFixed(2);
+  
+            return `${label}: ${value} (${percentage}%)`;
+          },
+        
         }
       }
     },
@@ -303,7 +308,7 @@ const DonutChart = () => {
 
           {/* Overview Section - Filtered when a category is selected */}
           <div className="overview-section">
-            <h3>Disaster Categories Overview</h3>
+            <h3>Disaster Categories Overview (6 months)</h3>
             <ul>
               {filteredCategoryData.map(item => (
                   <li key={item.category}>
