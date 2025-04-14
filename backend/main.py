@@ -98,6 +98,17 @@ def clean_text(text):
     text = text.lower()
     return text
 
+
+# Check if text is in English
+def is_english(text):
+    """Detect if text is in English"""
+    try:
+        return detect(text) == 'en'
+    except:
+        # If detection fails, assume it's not English
+        return False
+
+
 # Safe date parsing function to handle problematic ISO formats
 def safe_parse_date(date_string):
     """Safely parse date strings into datetime objects, handling various formats."""
@@ -676,14 +687,9 @@ def search_bluesky_for_keywords(client, keyword, since_time, max_posts=10, max_r
 
             logger.info(f"Searching for '{keyword}' since {since_str}")
 
-            # Make the API request with rate limiting and English language filter
+            # Make the API request with rate limiting
             response = client.app.bsky.feed.search_posts(
-                params={
-                    'q': keyword,
-                    'limit': max_posts,
-                    'since': since_str,
-                    'lang': 'en'  # Add English language filter
-                }
+                params={'q': keyword, 'limit': max_posts, 'cursor': None, 'since': since_str}
             )
 
             return response
@@ -772,6 +778,11 @@ def process_keyword_feed(dynamodb, tokenizer, model, id2label, client):
 
                             # Extract post data
                             text = post.record.text
+
+                            # Check if post is in English
+                            if not is_english(text):
+                                logger.info(f"Skipping non-English post: {uri}")
+                                continue
 
                             # Add to processed set to avoid duplication
                             processed_ids.add(uri)
