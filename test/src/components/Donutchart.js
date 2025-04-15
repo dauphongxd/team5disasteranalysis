@@ -72,6 +72,12 @@ const DonutChart = () => {
   // Store the category map so we can look it up correctly in the click handler
   const categoryMapRef = useRef(null);
 
+  // Store the raw API data for subcategory drill-down
+  const apiDataRef = useRef(null);
+
+  // Keep track of subcategory data
+  const [subcategoryData, setSubcategoryData] = useState(null);
+
   // Use useCallback to memoize the fetchDisasterDistribution function
   const fetchDisasterDistribution = useCallback(async () => {
     try {
@@ -84,6 +90,9 @@ const DonutChart = () => {
       if (!apiData || !apiData.data || !Array.isArray(apiData.data)) {
         throw new Error('Invalid data format received from API');
       }
+
+      // Store the raw API data for later use in subcategory drilldown
+      apiDataRef.current = apiData.data;
 
       // Initialize all super categories with 0 counts
       const superCategoryCounts = {};
@@ -178,6 +187,76 @@ const DonutChart = () => {
     }
   }, []);
 
+  // Function to prepare subcategory data for the selected category
+  const prepareSubcategoryData = useCallback((selectedSuperCategory) => {
+    if (!apiDataRef.current || !selectedSuperCategory) return null;
+
+    // Get the subcategories for this super category
+    const subcategoryTypes = disasterCategoriesMapping[selectedSuperCategory] || [];
+
+    // Find all matching subcategories in the API data
+    const subcategoryData = [];
+    const subcategoryCounts = {};
+
+    // Initialize counts for all expected subcategories
+    subcategoryTypes.forEach(subType => {
+      subcategoryCounts[subType] = 0;
+    });
+
+    // Sum the counts from the API data
+    apiDataRef.current.forEach(item => {
+      const normalizedType = normalizeDisasterType(item.type);
+      const count = item.count || 0;
+
+      // Check if this item matches any subcategory
+      for (const subType of subcategoryTypes) {
+        const normalizedSubType = normalizeDisasterType(subType);
+
+        if (normalizedType === normalizedSubType ||
+            normalizedType === normalizedSubType.replace(/_/g, ' ') ||
+            normalizedType.replace(/_/g, ' ') === normalizedSubType) {
+          subcategoryCounts[subType] += count;
+          break;
+        }
+      }
+    });
+
+    // Create an array of subcategory data
+    Object.entries(subcategoryCounts).forEach(([subType, count]) => {
+      if (count > 0) {
+        subcategoryData.push({
+          category: subType,
+          displayName: capitalizeFirstLetter(subType.replace(/_/g, ' ')),
+          count: count
+        });
+      }
+    });
+
+    // Sort by count in descending order
+    subcategoryData.sort((a, b) => b.count - a.count);
+
+    // If no subcategories have data, show a placeholder
+    if (subcategoryData.length === 0) {
+      subcategoryData.push({
+        category: "no_data",
+        displayName: "No Data Available",
+        count: 0
+      });
+    }
+
+    return subcategoryData;
+  }, []);
+
+  // When the selected category changes, update subcategory data
+  useEffect(() => {
+    if (selectedCategory) {
+      const subcats = prepareSubcategoryData(selectedCategory);
+      setSubcategoryData(subcats);
+    } else {
+      setSubcategoryData(null);
+    }
+  }, [selectedCategory, prepareSubcategoryData]);
+
   // Fetch data when component mounts
   useEffect(() => {
     fetchDisasterDistribution();
@@ -244,15 +323,15 @@ const DonutChart = () => {
         borderColor: 'rgba(255, 255, 255, 0.3)',
         borderWidth: 1,
         callbacks: {
+          // Add percentage to tooltip
           label: function(context) {
             const label = context.label || '';
             const value = context.raw || 0;
             const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
             const percentage = ((value / total) * 100).toFixed(2);
-  
+
             return `${label}: ${value} (${percentage}%)`;
-          },
-        
+          }
         }
       }
     },
@@ -285,36 +364,40 @@ const DonutChart = () => {
 
   if (!chartData) return null;
 
-  // Filter the displayed data based on selection
-  const filteredCategoryData = selectedCategory
-      ? chartData.superCategoryData.filter(item => item.category === selectedCategory)
-      : chartData.superCategoryData;
+  // Determine which data to display in the table
+  const displayData = selectedCategory && subcategoryData
+      ? subcategoryData   // Show subcategories when selected
+      : chartData.superCategoryData;  // Otherwise show main categories
 
   return (
       <div className="help-section">
         <h2 className="heading">Natural Disasters Overview</h2>
         <div className="Donutchart-section" ref={chartRef}>
-          {/* Donut Chart */}
+          {/* Donut Chart - Always show the super categories */}
           <div className="donutchart-container">
             <Doughnut data={chartData.chartJsData} options={options} />
             {/*{selectedCategory && (*/}
             {/*    <div className="click-instructions">*/}
-            {/*      Showing data for category: {superCategoryNames[selectedCategory] || selectedCategory}*/}
+            {/*      Showing detail for: {superCategoryNames[selectedCategory] || selectedCategory}*/}
             {/*      <br />*/}
             {/*      <small>(Click again or double-click anywhere on the chart to show all categories)</small>*/}
             {/*    </div>*/}
             {/*)}*/}
           </div>
 
-          {/* Overview Section - Filtered when a category is selected */}
+          {/* Overview Section - Shows subcategories when a category is selected */}
           <div className="overview-section">
-            <h3>Disaster Categories Overview (6 months)</h3>
+            <h3>
+              {selectedCategory
+                  ? `${superCategoryNames[selectedCategory]}`
+                  : `Disaster Categories Overview (${MONTHS_PERIOD} months)`}
+            </h3>
             <ul>
-              {filteredCategoryData.map(item => (
+              {displayData.map(item => (
                   <li key={item.category}>
-                <span className="category">
-                  {item.displayName}
-                </span>
+                    <span className="category">
+                      {item.displayName}
+                    </span>
                     <span className="occurrence">{item.count}</span>
                   </li>
               ))}
