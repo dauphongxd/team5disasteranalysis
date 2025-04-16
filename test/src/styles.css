@@ -8,6 +8,8 @@ body {
     font-family: Arial, sans-serif;
 }
 
+p {font-size: 16px; /* Default size for larger screens */}
+
 /* Background container for Three.js */
 #background-container {
     width: 100vw;
@@ -40,15 +42,13 @@ canvas {
     align-items: flex-start; /* Align items at the top */
     margin-top: 10px; /* Add some space after the filters */
     margin: 20px;
+    flex-wrap: nowrap;
 }
 
 header {
     text-align: center;
     margin-bottom: 30px;
-}
-
-h1,h2 {
-    color: #ffffff;
+    margin: 20px;
 }
 
 /* Buttons */
@@ -71,6 +71,7 @@ h1,h2 {
     transform: skewX(-25deg);
     transition: all 0.3s ease;
     background-color: #0000008a;
+    font-size: 0.9em
 }
  
 .sc-button:hover {
@@ -87,23 +88,23 @@ h1,h2 {
 
 /* Map */
 .map-section {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 500px;
+    width: 100%;
     position: relative;
     margin-top: 0; /* Reset margin */
     padding-top: 0; /* Ensure no top padding */
     margin-bottom: 0;
+    max-width: 100%;
 }
 
 #map {
     width: 100%;
     background-color: #f5f5f5;
-    height: 600px;
+    height: 0;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     position: relative;
-    margin-bottom: 15px;
 }
 
 .performance-map {
@@ -146,24 +147,13 @@ h1,h2 {
     overflow-y: auto;
 }
 
-/* Make map responsive */
-@media (max-width: 768px) {
-    .main-content {
-        flex-direction: column;
-    }
-
-    #map {
-        height: 400px;
-        margin-bottom: 20px;
-    }
-}
-
 /* Tweet section styling - FIXED WITH BACKGROUND COLOR */
 .tweet-section {
-    flex: 0 0 350px;
-    width: 350px;
+    flex: 1; /* Allow the section to grow and shrink */
+    width: 100%; /* Make the width 100% by default */
     max-width: 350px;
 }
+
 
 .tweet-feed {
     width: 100%;
@@ -278,12 +268,14 @@ h1,h2 {
 .help-category h3 {
     color: #1da1f2;
     margin-top: 0;
+    font-size: 1.2em;
 }
 
 .help-category ul {
     list-style: none;
     padding: 0;
     margin: 0;
+    font-size: 1em;
 }
 
 .help-category li {
@@ -342,6 +334,8 @@ h1, h2 {
     animation-name: textflicker;
     animation-iteration-count: infinite;
     animation-direction: alternate;
+    color: #ffffff;
+    line-height: 1.5;
 }
 
 h1 { font-size: 3em; }
@@ -605,14 +599,6 @@ body.performance-mode * {
     font-size: 14px;
 }
 
-/* Responsive map designs */
-@media (max-width: 768px) {
-    .legend {
-        max-width: 150px !important;
-        font-size: 12px !important;
-    }
-}
-
 /* Real-time map controls */
 .map-header {
     display: flex;
@@ -715,27 +701,6 @@ body.performance-mode * {
     font-size: 0.9rem;
     color: #555;
     font-weight: bold;
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    .mobile-timestamp {
-        display: block;
-    }
-
-    .timestamp {
-        display: none; /* Hide in legend on mobile */
-    }
-
-    .legend {
-        max-width: 180px !important;
-        max-height: 300px !important;
-    }
-
-    .refresh-button {
-        padding: 4px 8px;
-        font-size: 12px;
-    }
 }
 
 /* NWS Data Viewer Toggle and Container */
@@ -945,30 +910,6 @@ body.performance-mode * {
     color: white;
 }
 
-@media (max-width: 768px) {
-    .nws-viewer-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-
-    .nws-viewer-controls {
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
-    }
-
-    .filter-control {
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
-    }
-
-    .filter-control select {
-        width: 100%;
-    }
-}
-
 /* NWS Data Statistics */
 .nws-data-stats {
     background-color: rgba(255, 255, 255, 0.7);
@@ -1038,12 +979,6 @@ body.performance-mode * {
     margin-right: 5px;
 }
 
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* Enhanced Disaster Map Legend Styles */
 .disaster-map-legend {
     position: relative;
@@ -1078,19 +1013,6 @@ body.performance-mode * {
 /* Remove backdrop effect since legend is now below map */
 .disaster-map-legend.expanded::before {
     display: none;
-}
-
-/* Mobile responsiveness adjustments */
-@media (max-width: 768px) {
-  .disaster-map-legend {
-    position: relative;
-    top: auto;
-    right: auto;
-    max-width: 100%;
-    width: 100%;
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
 }
 
 .legend-header {
@@ -1378,46 +1300,6 @@ body.performance-mode * {
 .legend-refresh-button:hover {
     background-color: #2980b9;
 }
-
-/* Media Queries for Responsive Legend */
-@media (max-width: 768px) {
-    .disaster-map-legend {
-        padding: 12px;
-    }
-
-    .disaster-map-legend.expanded {
-        max-height: 70vh;
-    }
-
-    .flag-example-row {
-        flex-direction: column;
-        gap: 5px;
-    }
-      
-    .severity-label, .type-label {
-        width: 70px;
-        font-size: 0.8rem;
-    }
-    
-    .severity-bar-container, .type-bar-container {
-        min-width: 80px;
-    }
-}
-  
-@media (min-width: 992px) {
-    .disaster-map-legend {
-        max-width: 100%;
-    }
-    
-    .disaster-map-legend.expanded {
-        max-width: 100%;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        transform: translateY(-80px);
-    }
-}
     /* Enhanced Flag marker styles */
     .flag-marker {
         position: relative;
@@ -1693,15 +1575,17 @@ body.performance-mode * {
     padding: 20px;
     background-color: #1b1e23;
     border-radius: 10px;
-    display: grid; /* Use CSS Grid for layout */
+    display: flex; /* Use CSS Grid for layout */
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
     gap: 20px; /* Uniform gap between items */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2); /* Light thin */
+    flex-wrap: wrap;
 }
 
 .donutchart-container {
+    flex: 1 1 300px;
     width: 100%;
     max-width: 500px;
     min-width: 300px;
@@ -1711,8 +1595,11 @@ body.performance-mode * {
 }
 
 .overview-section {
+    flex: 1 1 350px;
+    width: 100%;
     margin-top: 20px;
     max-width: 500px;
+    min-width: 200px;
     padding: 15px;
     border: 1px solid #ddd; /* Subtle border for separation */
     border-radius: 8px; /* Rounded corners */
@@ -1875,7 +1762,7 @@ html {
 }
 
 .app-footer p {
-    font-size: 0.9rem;
+    font-size: 0.9em;
     color: #aaaaaa;
     margin-bottom: 20px;
 }
@@ -2007,27 +1894,6 @@ html {
     min-width: 300px;
 }
 
-
-/* Mobile responsiveness for footer */
-@media (max-width: 768px) {
-    .app-footer {
-        padding: 20px 0;
-    }
-
-    .emergency-resources {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-
-    .resources-column h3 {
-        font-size: 1rem;
-    }
-
-    .footer-note {
-        font-size: 0.8rem;
-    }
-}
-
 /* Animations for footer headings (matching your site theme) */
 .app-footer h3 {
     /*animation-duration: 2s;
@@ -2055,7 +1921,6 @@ html {
 }
 
 .connection-status {
-    font-size: 0.9rem;
     padding: 4px 8px;
     border-radius: 12px;
     display: flex;
@@ -2140,22 +2005,6 @@ html {
     position: relative;
 }
 
-@media (max-width: 768px) {
-    .app-controls {
-        justify-content: center;
-        margin: 10px 0 20px 0;
-    }
-
-    .control-button {
-        width: 100%;
-        max-width: 300px;
-    }
-    
-    .main-content {
-        flex-direction: column;
-    }
-}
-
 @keyframes slideDown {
     from {
         opacity: 0;
@@ -2175,24 +2024,6 @@ html {
 .control-button {
     display: none;
 }
-
-@media (max-width: 768px) {
-    .nws-toggle-container {
-        justify-content: center;
-    }
-
-    .nws-toggle-button {
-        width: 100%;
-        max-width: 300px;
-        justify-content: center;
-    }
-    
-    .main-content {
-        flex-direction: column;
-    }
-}
-
-/* Add these styles to your styles.css file */
 
 .click-instructions {
     text-align: center;
@@ -2307,17 +2138,6 @@ html {
 /* Remove the backdrop effect for the NWS Data Viewer */
 .nws-data-viewer::before {
     display: none; /* Hide the backdrop */
-}
-
-/* For larger screens, adjust positioning to be inside the legend */
-@media (min-width: 768px) {
-    .nws-data-viewer {
-        position: relative; /* Changed from absolute to relative */
-        left: auto;
-        right: auto;
-        margin: 15px 0;
-        width: 100%; /* Take full width of parent */
-    }
 }
 
 /* Toggle legend expanded/collapsed buttons - Modified to still show important info */
@@ -2447,40 +2267,6 @@ html {
   max-height: 80vh;
 }
 
-/* Mobile responsiveness adjustments */
-@media (max-width: 768px) {
-  .disaster-map-legend {
-    position: relative;
-    top: auto;
-    right: auto;
-    max-width: 100%;
-    width: 100%;
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
-  
-  .disaster-map-legend.expanded,
-  .disaster-map-legend.collapsed {
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  /* Adjust the NWS data viewer for mobile */
-  .nws-data-viewer {
-    max-height: 50vh;
-  }
-  
-  /* Stack elements vertically in mobile */
-  .collapsed-controls {
-    flex-direction: row;
-    justify-content: space-between;
-  }
-  
-  /* Adjust the legend sections for better mobile display */
-  .legend-section {
-    padding-bottom: 10px;
-  }
-}
 
 /* NWS Data Viewer container adjustments */
 .nws-viewer-container .nws-data-viewer, 

@@ -10,6 +10,7 @@ import Timechart from "./components/Timechart";
 import Donutchart from "./components/Donutchart";
 import api from "./services/api"; // Import your existing API service
 import "./styles.css";
+import "./media.css";
 import HelpSection from "./components/HelpSection";
 
 function App() {

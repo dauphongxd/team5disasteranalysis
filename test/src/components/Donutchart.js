@@ -376,13 +376,6 @@ const DonutChart = () => {
           {/* Donut Chart - Always show the super categories */}
           <div className="donutchart-container">
             <Doughnut data={chartData.chartJsData} options={options} />
-            {/*{selectedCategory && (*/}
-            {/*    <div className="click-instructions">*/}
-            {/*      Showing detail for: {superCategoryNames[selectedCategory] || selectedCategory}*/}
-            {/*      <br />*/}
-            {/*      <small>(Click again or double-click anywhere on the chart to show all categories)</small>*/}
-            {/*    </div>*/}
-            {/*)}*/}
           </div>
 
           {/* Overview Section - Shows subcategories when a category is selected */}

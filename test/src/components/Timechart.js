@@ -445,7 +445,7 @@ const Timechart = ({ selectedDisaster }) => {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Number of Events',
+          text: 'Occurrence',
           color: "#ffffff", // Match your theme
         },
         ticks: {

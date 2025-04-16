@@ -1,0 +1,286 @@
+/******** General **********/
+@media (max-width: 720px) {
+
+    h1 {font-size: 1.9em;}
+    h2 {font-size: 0.8em;}
+
+    p { font-size: 14px;}
+    /* Earth */
+    .earth {
+        width: 80px;  /* Smaller width for mobile */
+        height: 80px; /* Smaller height for mobile */
+    }
+
+    /* Buttons */
+    .sc-button {
+        padding: 4px 15px; /* Smaller padding for mobile */
+        font-size: 0.7em  /* Smaller font size for mobile */
+    }
+
+    .help-section{
+        font-size: 1em;
+    }
+
+}
+
+/**** Tweet Section ****/
+@media (min-width: 900px) {
+    .tweet-section {
+        width: 350px; /* Set a fixed width for larger screens */
+    }
+}
+@media (max-width: 900px) {
+    .tweet-section {
+        width: 100%; /* Full width for tweet section on mobile */
+    }
+    .map-section,
+    .tweet-section,
+    .tweet-feed {
+        width: 100%; /* Full width on mobile */
+        max-width: none; /* Remove max-width restriction */
+    }
+}
+
+/********* Map *******/
+@media (max-width: 900px) {
+
+    .main-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #map {
+        width: 100%; /* Full width for mobile */
+        min-width: 500px; /* Set a minimum width */
+        position: relative; /* Position relative for absolute children */
+        padding-bottom: 75%; /* 3:4 aspect ratio (3/4 = 0.75) */
+        max-height: 100px; /* Set height to 0 to use padding-bottom for aspect ratio */
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .legend {
+        max-width: 150px !important;
+        font-size: 12px !important;
+    }
+
+    .mobile-timestamp {
+        display: block;
+    }
+
+    .timestamp {
+        display: none; /* Hide in legend on mobile */
+    }
+
+    .legend {
+        max-width: 180px !important;
+        max-height: 300px !important;
+    }
+
+    .refresh-button {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .nws-viewer-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .nws-viewer-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .filter-control {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .filter-control select {
+        width: 100%;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .disaster-map-legend {
+        position: relative;
+        top: auto;
+        right: auto;
+        max-width: 100%;
+        width: 100%;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding: 12px;
+        font-size: 0.9em;
+    } 
+
+    .disaster-map-legend.expanded {
+        max-height: 70vh;
+    }
+
+    .flag-example-row {
+        flex-direction: column;
+        gap: 5px;
+    }
+      
+    .severity-label, .type-label {
+        width: 70px;
+        font-size: 0.8rem;
+    }
+    
+    .severity-bar-container, .type-bar-container {
+        min-width: 80px;
+    }
+
+    .nws-toggle-container {
+        justify-content: center;
+    }
+
+    .nws-toggle-button {
+        width: 100%;
+        max-width: 300px;
+        justify-content: center;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+
+    .disaster-map-legend.expanded,
+    .disaster-map-legend.collapsed {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Adjust the NWS data viewer for mobile */
+    .nws-data-viewer {
+     max-height: 50vh;
+    }
+    
+    /* Stack elements vertically in mobile */
+    .collapsed-controls {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    
+    /* Adjust the legend sections for better mobile display */
+    .legend-section {
+        padding-bottom: 10px;
+    }
+
+    /* App Control? */
+    .app-controls {
+        justify-content: center;
+        margin: 10px 0 20px 0;
+    }
+
+    .control-button {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+
+}
+
+@media (min-width: 768px) {
+    .nws-data-viewer {
+        position: relative; /* Changed from absolute to relative */
+        left: auto;
+        right: auto;
+        margin: 15px 0;
+        width: 100%; /* Take full width of parent */
+    }
+}
+
+@media (min-width: 992px) {
+    .disaster-map-legend {
+        max-width: 100%;
+    }
+    
+    .disaster-map-legend.expanded {
+        max-width: 100%;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        transform: translateY(-80px);
+    }
+}
+
+
+/**** Help Section ****/
+@media (max-width: 720px) {
+    .help-category{
+        font-size: 0.9em;
+    }
+
+}
+
+
+/**** DonutChart Section ****/
+@media (max-width: 900px) {
+    .Donutchart-section {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .donutchart-container {
+        max-width: 400px;
+    }
+
+    .overview-section h3{
+        font-size: 1em;
+    }
+
+    .overview-section li {
+        font-size: 0.9em;
+    }
+}
+
+/******** Footer **********/
+@media (max-width: 720px) {
+    .app-footer {
+        padding: 20px 0;
+    }
+
+    .emergency-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .connect-section {
+        text-align: left;
+    }
+
+    .resources-column,
+    .connect-section {
+        flex: 1 1 100%;
+        font-size: 0.9em;
+    }
+
+    .logo-container {
+        justify-content: left; /* Center logos horizontally */
+    }
+
+    .app-footer h3{
+        font-size: 1rem;
+    }
+
+    .emergency-resources {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .footer-note {
+        font-size: 0.7em;
+    }
+}
