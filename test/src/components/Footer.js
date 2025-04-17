@@ -39,6 +39,9 @@ function Footer({ selectedDisaster = "all" }) {
                             <p>Learn more about our team and our projects.</p>
                         </div>
                         <div className="logo-container">
+                            <a href="#" target="_blank" rel="noopener noreferrer" className="logo-link about-link">
+                                About
+                            </a>
                             <a href="https://github.com/dauphongxd/team5disasteranalysis" target="_blank" rel="noopener noreferrer" className="logo-link">
                                 <img src={githubLogo} alt="GitHub Logo" className="logo" />
                             </a> 

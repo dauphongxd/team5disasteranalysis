@@ -1807,6 +1807,20 @@ html {
     align-items: center;
 }
 
+.about-link {
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.about-link:hover {
+    color: #000;
+    background-color: #aaaaaa;
+    transition: background-color 0.3s ease;
+}
+
 .resources-column ul {
     list-style: none;
     padding: 0;
