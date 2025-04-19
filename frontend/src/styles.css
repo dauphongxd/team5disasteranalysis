@@ -39,6 +39,7 @@ canvas {
     gap: 20px;
     align-items: flex-start; /* Align items at the top */
     margin-top: 10px; /* Add some space after the filters */
+    margin: 20px;
 }
 
 header {
@@ -53,7 +54,8 @@ h1,h2 {
 /* Buttons */
 .disaster-filters {
     display: flex;
-    margin-bottom: 20px;
+    margin: 20px;
+    flex-wrap: wrap; /* Allow buttons to wrap to the next line */
     justify-content: center;
 }
 
@@ -64,7 +66,7 @@ h1,h2 {
     padding: 6px 25px;
     color: #ffffff;
     border-radius: 4px;
-    margin: 10px;
+    margin: 5px;
     text-decoration: none;
     transform: skewX(-25deg);
     transition: all 0.3s ease;
@@ -1860,6 +1862,7 @@ html {
     min-height: 100px;
 }
 
+/* Footer */
 .app-footer {
     background-color: #1b1e23;
     color: #ffffff;
@@ -1869,6 +1872,12 @@ html {
     box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);
     position: relative;
     z-index: 2; /* Above the background */
+}
+
+.app-footer p {
+    font-size: 0.9rem;
+    color: #aaaaaa;
+    margin-bottom: 20px;
 }
 
 .footer-content {
@@ -1884,6 +1893,7 @@ html {
     margin-bottom: 30px;
 }
 
+/*
 .resources-column h3 {
     font-family: Nintendoid1;
     text-shadow: 0.06rem 0 0.06rem #ea36af, -0.125rem 0 0.06rem #75fa69;
@@ -1893,11 +1903,28 @@ html {
     border-bottom: 2px solid #36a2eb;
     padding-bottom: 8px;
 }
+*/
+
+.emergency-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px; /* Adjust as needed */
+    margin: 20px;
+    gap: 20px;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+}
 
 .resources-column ul {
     list-style: none;
     padding: 0;
     margin: 0;
+    min-width: 300px;
 }
 
 .resources-column li {
@@ -1905,15 +1932,16 @@ html {
 }
 
 .resources-column a {
-    color: #1da1f2;
+    color: #ffffff;
     text-decoration: none;
+    display: flex;
+    align-items: center;
     transition: color 0.3s ease;
     display: inline-block;
 }
 
 .resources-column a:hover {
-    color: #ffffff;
-    text-decoration: underline;
+    color: #1da1f2;
 }
 
 .disaster-buttons {
@@ -1959,6 +1987,27 @@ html {
     font-weight: bold;
 }
 
+.logo {
+    width: 40px; /* Adjust the size as needed */
+    height: auto;
+    margin-left: auto;
+    display: block;
+    display: flex;
+}
+
+.logo-container {
+    display: flex;
+    justify-content: right; /* Center logos horizontally */
+    gap: 20px; /* Space between logos */
+}
+
+.connect-section {
+    text-align: right;
+    margin-bottom: 30px;
+    min-width: 300px;
+}
+
+
 /* Mobile responsiveness for footer */
 @media (max-width: 768px) {
     .app-footer {
@@ -1981,16 +2030,23 @@ html {
 
 /* Animations for footer headings (matching your site theme) */
 .app-footer h3 {
-    animation-duration: 2s;
+    /*animation-duration: 2s;
     animation-name: textflicker;
     animation-iteration-count: infinite;
-    animation-direction: alternate;
+    animation-direction: alternate;*/
+    margin-bottom: 15px;
+    font-size: 1 rem;
+    color: #ffffff; /* Darker text for better readability */
+    border-bottom: 2px solid #36A2EB; /* Underline with a color matching the chart */
+    padding-bottom: 5px;
 }
 
 /* When animations are disabled */
+/*
 .animations-disabled .app-footer h3 {
     animation: none !important;
 }
+*/
 
 .tweet-controls {
     display: flex;

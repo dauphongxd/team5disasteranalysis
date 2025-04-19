@@ -7,11 +7,11 @@ import api from "../services/api";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Disaster categories mapping for aggregating data - using underscores for consistency
+// Removed tsunami from mappings
 const disasterCategoriesMapping = {
   fire: ["wild_fire", "bush_fire", "forest_fire"],
   storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
   earthquake: ["earthquake"],
-  tsunami: ["tsunami"],
   volcano: ["volcano"],
   flood: ["flood"],
   landslide: ["landslide", "avalanche"],
@@ -19,11 +19,11 @@ const disasterCategoriesMapping = {
 };
 
 // Super category display names (for better formatting)
+// Removed tsunami from super category names
 const superCategoryNames = {
   fire: "Fire",
   storm: "Storm",
   earthquake: "Earthquake",
-  tsunami: "Tsunami",
   volcano: "Volcano",
   flood: "Flood",
   landslide: "Landslide",
@@ -31,11 +31,11 @@ const superCategoryNames = {
 };
 
 // Consistent color mapping for each category
+// Removed tsunami from color mapping
 const categoryColors = {
   fire: "#FF6384",     // Red
   storm: "#36A2EB",    // Blue
   earthquake: "#FFCE56", // Yellow
-  tsunami: "#00FFFF",  // Cyan - Specific color for tsunami
   volcano: "#9966FF",  // Purple
   flood: "#4BC0C0",    // Teal
   landslide: "#FF9F40", // Orange
@@ -43,11 +43,11 @@ const categoryColors = {
 };
 
 // Define the order we want to display categories in
+// Removed tsunami from category order
 const categoryOrder = [
   "fire",
   "storm",
   "earthquake",
-  "tsunami",
   "volcano",
   "flood",
   "landslide",
@@ -107,6 +107,12 @@ const DonutChart = () => {
         // Normalize the type for consistent comparison
         const normalizedType = normalizeDisasterType(item.type);
         const count = item.count || 0;
+
+        // Skip tsunami data
+        if (normalizedType === 'tsunami' || normalizedType === 'tsunami_') {
+          return;
+        }
+
         totalCount += count;
 
         // Find which super category this item belongs to
@@ -207,6 +213,11 @@ const DonutChart = () => {
     apiDataRef.current.forEach(item => {
       const normalizedType = normalizeDisasterType(item.type);
       const count = item.count || 0;
+
+      // Skip tsunami data
+      if (normalizedType === 'tsunami' || normalizedType === 'tsunami_') {
+        return;
+      }
 
       // Check if this item matches any subcategory
       for (const subType of subcategoryTypes) {
@@ -376,13 +387,6 @@ const DonutChart = () => {
           {/* Donut Chart - Always show the super categories */}
           <div className="donutchart-container">
             <Doughnut data={chartData.chartJsData} options={options} />
-            {/*{selectedCategory && (*/}
-            {/*    <div className="click-instructions">*/}
-            {/*      Showing detail for: {superCategoryNames[selectedCategory] || selectedCategory}*/}
-            {/*      <br />*/}
-            {/*      <small>(Click again or double-click anywhere on the chart to show all categories)</small>*/}
-            {/*    </div>*/}
-            {/*)}*/}
           </div>
 
           {/* Overview Section - Shows subcategories when a category is selected */}

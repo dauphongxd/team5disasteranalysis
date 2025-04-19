@@ -249,6 +249,8 @@ def get_posts():
                             continue
 
                     # Apply disaster type filtering if not already applied at the DB level
+                    # IMPORTANT: For 'all' category, we should NOT apply additional filtering
+                    # since 'all' means all disaster posts, and we've already filtered by is_disaster_str
                     if not already_applied_disaster_filter and disaster_type != 'all':
                         item_disaster_type = item.get('disaster_type', '').lower()
 
@@ -256,19 +258,24 @@ def get_posts():
                         if disaster_type in disaster_categories:
                             subcategories = disaster_categories[disaster_type]
                             match_found = False
+                            normalized_item_type = item_disaster_type.replace('_', ' ')
 
                             for subcategory in subcategories:
-                                if subcategory in item_disaster_type or item_disaster_type in subcategory:
+                                normalized_subcategory = subcategory.replace('_', ' ')
+                                if normalized_item_type == normalized_subcategory or normalized_subcategory in normalized_item_type:
                                     match_found = True
                                     break
 
                             if not match_found:
                                 continue
                         # For direct matching if not a super-category
-                        elif item_disaster_type != disaster_type.lower():
+                        elif not (disaster_type.lower() in item_disaster_type or
+                                  item_disaster_type in disaster_type.lower() or
+                                  disaster_type.lower().replace('_', ' ') in item_disaster_type.replace('_', ' ') or
+                                  item_disaster_type.replace('_', ' ') in disaster_type.lower().replace('_', ' ')):
                             continue
 
-                    # Transform DynamoDB item to match expected format
+                    # If we get here, the post matches our criteria - transform and add it
                     post = {
                         'post_id': item.get('post_id'),
                         'original_text': item.get('original_text'),
@@ -294,126 +301,100 @@ def get_posts():
         posts = []
         last_evaluated_key = None
 
-        # OPTIMIZATION: Choose the query approach based on the disaster type
-        if disaster_type == 'all':
-            # For 'all', use the IsDisasterIndex as before
+        # Check if we can use a dedicated index for a specific type
+        use_dedicated_index = False
+        if disaster_type != 'all':
+            # Add other types here if you create dedicated indexes for them
+            if disaster_type == 'tsunami':
+                use_dedicated_index = True
+                index_name = 'DisasterTypeIndex'
+                key_condition = Key('disaster_type').eq(disaster_type)
+        if use_dedicated_index:
+            logger.info(f"Using dedicated index {index_name} for type: {disaster_type}")
+            params = {
+                'IndexName': index_name,
+                'KeyConditionExpression': key_condition,
+                'Limit': limit,
+                'ScanIndexForward': False
+            }
+
+            if next_token:
+                try:
+                    # Decode the complex key for GSI correctly
+                    token_data = json.loads(next_token)
+                    # GSI Key includes primary key of main table as well
+                    params['ExclusiveStartKey'] = {
+                        'disaster_type': token_data['disaster_type'],  # GSI Hash Key
+                        'indexed_at': token_data['indexed_at'],  # GSI Sort Key
+                        'post_id': token_data['post_id']  # Main Table Hash Key
+                    }
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.error(f"Invalid next_token format for GSI: {next_token} - Error: {e}")
+                    return jsonify({"error": "Invalid pagination token"}), 400
+
+
+            response = posts_table.query(**params)
+            posts = process_items(response.get('Items', []), already_applied_disaster_filter=True)
+
+            if 'LastEvaluatedKey' in response:
+                last_evaluated_key = response['LastEvaluatedKey']
+        else:
+            logger.info(f"Using IsDisasterIndex and filtering for type: {disaster_type}")
             params = {
                 'IndexName': 'IsDisasterIndex',
                 'KeyConditionExpression': Key('is_disaster_str').eq('true'),
-                'Limit': limit * 3,  # Fetch more items to account for filtering
-                'ScanIndexForward': False  # Sort in descending order (newest first)
-            }
-
-            # Add pagination token if provided
-            if next_token:
-                try:
-                    params['ExclusiveStartKey'] = json.loads(next_token)
-                except json.JSONDecodeError:
-                    logger.error(f"Invalid next_token format: {next_token}")
-                    return jsonify({"error": "Invalid pagination token"}), 400
-
-            # Execute the query
-            response = posts_table.query(**params)
-
-            # Process items
-            posts = process_items(response.get('Items', []))
-
-            # Save the last evaluated key for pagination
-            if 'LastEvaluatedKey' in response:
-                last_evaluated_key = response['LastEvaluatedKey']
-
-            # If we need more items, continue fetching
-            while len(posts) < limit and 'LastEvaluatedKey' in response:
-                params['ExclusiveStartKey'] = response['LastEvaluatedKey']
-                response = posts_table.query(**params)
-
-                new_posts = process_items(response.get('Items', []))
-                posts.extend(new_posts)
-
-                if 'LastEvaluatedKey' in response:
-                    last_evaluated_key = response['LastEvaluatedKey']
-                else:
-                    break
-
-        elif disaster_type in disaster_categories:
-            # For super-categories (fire, storm, etc.), query each subcategory
-            subcategories = disaster_categories[disaster_type]
-
-            # We need to track pagination across multiple queries
-            # For now, we don't support pagination for super-categories
-            # This could be enhanced in the future
-
-            for subcategory in subcategories:
-                # Skip pagination for now (simplified approach)
-                params = {
-                    'IndexName': 'DisasterTypeIndex',
-                    'KeyConditionExpression': Key('disaster_type').eq(subcategory),
-                    'Limit': limit,  # Each subcategory gets up to 'limit' items
-                    'ScanIndexForward': False
-                }
-
-                try:
-                    subresponse = posts_table.query(**params)
-                    # Process with language filtering only (disaster type already filtered)
-                    new_posts = process_items(subresponse.get('Items', []), already_applied_disaster_filter=True)
-                    posts.extend(new_posts)
-                except Exception as subcategory_error:
-                    logger.error(f"Error querying subcategory {subcategory}: {str(subcategory_error)}")
-
-            # Sort by created_at (newest first) since we're combining from multiple queries
-            posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-
-            # Limit to requested number
-            posts = posts[:limit]
-
-            # We don't support pagination for super-categories in this simplified implementation
-            last_evaluated_key = None
-
-        else:
-            # For direct disaster types, use DisasterTypeIndex
-            params = {
-                'IndexName': 'DisasterTypeIndex',
-                'KeyConditionExpression': Key('disaster_type').eq(disaster_type),
-                'Limit': limit,
+                'Limit': limit * 2,  # Get more to account for filtering
                 'ScanIndexForward': False
             }
 
             # Add pagination token if provided
             if next_token:
                 try:
-                    params['ExclusiveStartKey'] = json.loads(next_token)
-                except json.JSONDecodeError:
-                    logger.error(f"Invalid next_token format: {next_token}")
+                    # Decode the complex key for IsDisasterIndex
+                    token_data = json.loads(next_token)
+                    params['ExclusiveStartKey'] = {
+                        'is_disaster_str': token_data['is_disaster_str'],  # Index Hash Key
+                        'indexed_at': token_data['indexed_at'],  # Index Sort Key
+                        'post_id': token_data['post_id']  # Main Table Hash Key
+                    }
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.error(f"Invalid next_token format for IsDisasterIndex: {next_token} - Error: {e}")
                     return jsonify({"error": "Invalid pagination token"}), 400
 
-            # Execute the query
+            # Execute the query - this will get ALL disaster posts
             response = posts_table.query(**params)
 
-            # Process with language filtering only (disaster type already filtered)
-            posts = process_items(response.get('Items', []), already_applied_disaster_filter=True)
+            # Process items with filtering based on disaster_type
+            # For 'all', this will just apply basic checks
+            # For specific types, this will apply our flexible matching logic
+            posts = process_items(response.get('Items', []), already_applied_disaster_filter=False)
 
             # Save the last evaluated key for pagination
             if 'LastEvaluatedKey' in response:
                 last_evaluated_key = response['LastEvaluatedKey']
 
-            # If we need more items, continue fetching
+            # If we need more items, continue fetching with pagination
             while len(posts) < limit and 'LastEvaluatedKey' in response:
                 params['ExclusiveStartKey'] = response['LastEvaluatedKey']
                 response = posts_table.query(**params)
 
-                new_posts = process_items(response.get('Items', []), already_applied_disaster_filter=True)
+                new_posts = process_items(response.get('Items', []), already_applied_disaster_filter=False)
                 posts.extend(new_posts)
 
                 if 'LastEvaluatedKey' in response:
                     last_evaluated_key = response['LastEvaluatedKey']
                 else:
-                    break
+                    last_evaluated_key = None  # Explicitly clear if no more keys
+                    break  # Exit loop if no more keys
+
+        # Ensure we're only returning up to the requested limit
+        posts = posts[:limit]
 
         # Build the response with pagination support
         result = {'posts': posts}
 
         # Add pagination token if we have more results
-        if last_evaluated_key and len(posts) >= limit:
+        if last_evaluated_key:
             result['next_token'] = json.dumps(last_evaluated_key)
 
         # Create the API response
@@ -883,16 +864,21 @@ def get_disaster_distribution_months():
 
         # Calculate start date for filtering
         now = datetime.now()
-        start_date = now - timedelta(days=30 * months_back)
+        start_month = now.month - months_back
+        start_year = now.year
+        while start_month <= 0:
+            start_month += 12
+            start_year -= 1
+        start_date = datetime(start_year, start_month, 1)
         start_date_str = start_date.isoformat()
         logger.info(f"Filtering disasters for the last {months_back} months (from {start_date_str})")
         filter_expression = Attr('created_at').gte(start_date_str)
+        logger.info(f"Filtering disasters using indexed_at >= {start_date_str}")
 
         # Query parameters
         query_params = {
             'IndexName': 'IsDisasterIndex',
-            'KeyConditionExpression': Key('is_disaster_str').eq('true'),
-            'FilterExpression': filter_expression
+            'KeyConditionExpression': Key('is_disaster_str').eq('true') & Key('indexed_at').gte(start_date_str)
         }
 
         # Get all disaster posts using IsDisasterIndex with time filter

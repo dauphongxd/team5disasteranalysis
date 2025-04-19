@@ -310,10 +310,11 @@ def generate_synthetic_post(date, disaster_type=None):
     # Generate confidence score based on disaster type
     # Unknown has lower confidence, known disaster types have higher confidence
     if disaster_type == "unknown":
-        confidence_score = random.uniform(0.1, 0.4)
+        # Even for unknown, keep confidence high for display purposes
+        confidence_score = random.uniform(0.95, 0.96)
     else:
-        # Beta distribution favors scores in the 0.65-0.95 range
-        confidence_score = min(0.99, max(0.1, random.betavariate(5, 2)))
+        # Always generate high confidence scores (0.95-0.99)
+        confidence_score = random.uniform(0.95, 0.99)
 
     # Small chance of having media
     has_media = random.random() < 0.4  # 40% chance of having media
@@ -342,10 +343,11 @@ def generate_synthetic_post(date, disaster_type=None):
         'location_name': location,
         'disaster_type': disaster_type,
         'confidence_score': Decimal(str(confidence_score)),
-        'is_disaster': confidence_score >= 0.5,
-        'is_disaster_str': 'true' if confidence_score >= 0.5 else 'false',
-        'media_urls': media_urls if media_urls else None,
-        'has_media': has_media
+        'is_disaster': True,
+        'is_disaster_str': 'true',
+        'media_urls': media_urls if media_urls else None,  # Use None if empty for consistency
+        'has_media': has_media,
+        'language': 'en'
     }
 
     return post_data
@@ -456,7 +458,7 @@ def generate_posts_for_date(dynamodb, date, min_posts=50, max_posts=100):
 
 
 # Main function to generate data for a date range
-def generate_data_for_date_range(start_date, end_date, dynamodb, min_posts=50, max_posts=100):
+def generate_data_for_date_range(start_date, end_date, dynamodb, min_posts=10, max_posts=50):
     """Generate posts for each day in a date range"""
     # Store users first
     logger.info("Storing user data...")

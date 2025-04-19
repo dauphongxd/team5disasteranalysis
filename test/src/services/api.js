@@ -207,7 +207,20 @@ export const api = {
     // Posts and tweets
     getPosts: async (type = 'all', limit = 20, nextToken = null, forceRefresh = false) => {
         let url = `/api/posts?type=${type}&limit=${limit}`;
-        if (nextToken) url += `&next_token=${encodeURIComponent(nextToken)}`;
+
+        // Ensure nextToken is properly encoded and passed
+        if (nextToken) {
+            try {
+                // Make sure the token is a string - parse and stringify if it's not
+                const tokenStr = typeof nextToken === 'string' ? nextToken : JSON.stringify(nextToken);
+                url += `&next_token=${encodeURIComponent(tokenStr)}`;
+            } catch (error) {
+                console.error("Error encoding next_token:", error);
+                // Continue without the token if there's an error
+            }
+        }
+
+        console.log(`API request: ${url}, forceRefresh: ${forceRefresh}`);
         return fetchFromAPI(url, {}, forceRefresh);
     },
 

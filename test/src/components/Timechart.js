@@ -24,11 +24,11 @@ ChartJS.register(
 );
 
 // Super category mapping with exact mapping as specified
+// Removed tsunami from mapping
 const disasterCategoriesMapping = {
   fire: ["wild_fire", "bush_fire", "forest_fire"],
   storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
   earthquake: ["earthquake"],
-  tsunami: ["tsunami"],
   volcano: ["volcano"],
   flood: ["flood"],
   landslide: ["landslide", "avalanche"],
@@ -36,11 +36,11 @@ const disasterCategoriesMapping = {
 };
 
 // Super category display names
+// Removed tsunami
 const superCategoryNames = {
   fire: "Fire",
   storm: "Storm",
   earthquake: "Earthquake",
-  tsunami: "Tsunami",
   volcano: "Volcano",
   flood: "Flood",
   landslide: "Landslide",
@@ -48,11 +48,11 @@ const superCategoryNames = {
 };
 
 // Define the fixed order of categories to ensure consistent display
+// Removed tsunami
 const categoryOrder = [
   "fire",
   "storm",
   "earthquake",
-  "tsunami",
   "volcano",
   "flood",
   "landslide",
@@ -60,11 +60,11 @@ const categoryOrder = [
 ];
 
 // Consistent color mapping for each category
+// Removed tsunami
 const categoryColors = {
   fire: "#FF6384",     // Red
   storm: "#36A2EB",    // Blue
   earthquake: "#FFCE56", // Yellow
-  tsunami: "#00FFFF",  // Cyan for tsunami
   volcano: "#9966FF",  // Purple
   flood: "#4BC0C0",    // Teal
   landslide: "#FF9F40", // Orange
@@ -146,6 +146,11 @@ const Timechart = ({ selectedDisaster }) => {
   const getSuperCategoryForType = (disasterType) => {
     if (!disasterType) return 'other';
 
+    // Skip tsunami data
+    if (disasterType.toLowerCase() === 'tsunami') {
+      return null; // Return null to exclude from processing
+    }
+
     // Normalize the disaster type
     const normalizedType = normalizeDisasterType(disasterType);
 
@@ -221,7 +226,18 @@ const Timechart = ({ selectedDisaster }) => {
         // Go through each dataset and add its values to the appropriate super category
         data.datasets.forEach(dataset => {
           const disasterType = dataset.label.toLowerCase();
+
+          // Skip tsunami data
+          if (disasterType === 'tsunami') {
+            return;
+          }
+
           const superCategory = getSuperCategoryForType(disasterType);
+
+          // Skip if superCategory is null (for tsunami)
+          if (superCategory === null) {
+            return;
+          }
 
           // Map API data to our week labels
           dataset.data.forEach((value, i) => {
@@ -274,6 +290,16 @@ const Timechart = ({ selectedDisaster }) => {
           });
         });
       } else {
+        // Special case: if tsunami is selected, skip rendering
+        if (selectedDisaster === 'tsunami') {
+          setChartData({
+            labels: allLabels.map(label => formatDateLabel(label, view)),
+            datasets: []
+          });
+          setLoading(false);
+          return;
+        }
+
         // When a specific super category is selected, show all its subcategories
         const subcategories = disasterCategoriesMapping[selectedDisaster] || [];
         const foundSubcategories = new Set();
@@ -281,6 +307,12 @@ const Timechart = ({ selectedDisaster }) => {
         // First, add subcategories that exist in the data
         data.datasets.forEach((dataset, index) => {
           const disasterType = dataset.label.toLowerCase();
+
+          // Skip tsunami data
+          if (disasterType === 'tsunami') {
+            return;
+          }
+
           const superCategory = getSuperCategoryForType(disasterType);
 
           if (superCategory === selectedDisaster) {
@@ -418,7 +450,7 @@ const Timechart = ({ selectedDisaster }) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
-  // Chart options configuration - keep original design
+  // Chart options configuration - keep original design with your label
   const options = {
     responsive: true,
     plugins: {
@@ -445,7 +477,7 @@ const Timechart = ({ selectedDisaster }) => {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Occurrence',
+          text: 'Occurrence', // Using your label
           color: "#ffffff", // Match your theme
         },
         ticks: {
@@ -489,6 +521,18 @@ const Timechart = ({ selectedDisaster }) => {
     }
     setView(newView);
   };
+
+  // If tsunami is selected, don't show the component
+  if (selectedDisaster === 'tsunami') {
+    return (
+        <div className="help-section">
+          <h2>Disaster Timeline</h2>
+          <div className="chart-section">
+            <div className="no-data-message">No timeline data available for this category.</div>
+          </div>
+        </div>
+    );
+  }
 
   if (loading && !chartData) {
     return (

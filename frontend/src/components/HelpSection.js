@@ -2,6 +2,7 @@ import React from "react";
 
 function HelpSection({ selectedDisaster }) {
   // Define the resource links with titles and links
+  // Removed tsunami resources
   const resources = {
     fire: {
       title: "🔥 Wildfire Safety",
@@ -22,13 +23,6 @@ function HelpSection({ selectedDisaster }) {
       links: [
         { text: "Earthquake Safety (Ready.gov)", url: "https://www.ready.gov/earthquakes" },
         { text: "USGS Earthquake Hazards", url: "https://earthquake.usgs.gov/" },
-      ],
-    },
-    tsunami: {
-      title: "🌊 Tsunami Safety",
-      links: [
-        { text: "Tsunami Preparedness (Ready.gov)", url: "https://www.ready.gov/tsunamis" },
-        { text: "NOAA Tsunami Program", url: "https://www.tsunami.noaa.gov/" },
       ],
     },
     volcano: {
@@ -67,6 +61,11 @@ function HelpSection({ selectedDisaster }) {
       ],
     },
   };
+
+  // Show generic resources if tsunami is selected
+  if (selectedDisaster === 'tsunami') {
+    selectedDisaster = 'all';
+  }
 
   // Get resources for the selected disaster type (or default to general resources)
   const selectedResources = resources[selectedDisaster] || resources.all;

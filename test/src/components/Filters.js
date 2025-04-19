@@ -11,12 +11,12 @@ function Filters({ setSelectedDisaster, selectedDisaster, availableTypes = [] })
 
     // Default disaster categories - will be used when API doesn't return specific types
     // Updated to use underscores instead of spaces for consistency with backend
+    // Removed tsunami from categories
     const defaultCategories = [
         { id: "all", label: "All" },
         { id: "fire", label: "Fire", includes: ["wild_fire", "bush_fire", "forest_fire"] },
         { id: "storm", label: "Storm", includes: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"] },
         { id: "earthquake", label: "Earthquake", includes: ["earthquake"] },
-        { id: "tsunami", label: "Tsunami", includes: ["tsunami"] },
         { id: "volcano", label: "Volcano", includes: ["volcano"] },
         { id: "flood", label: "Flood", includes: ["flood"] },
         { id: "landslide", label: "Landslide", includes: ["landslide", "avalanche"] },

@@ -3,11 +3,11 @@ import api from "../services/api";
 import websocketService from "../services/websocket";
 
 // Disaster categories mapping for proper filtering
+// Removed tsunami from mapping
 const disasterCategoriesMapping = {
   fire: ["wild_fire", "bush_fire", "forest_fire"],
   storm: ["storm", "blizzard", "cyclone", "dust_storm", "hurricane", "tornado", "typhoon"],
   earthquake: ["earthquake"],
-  tsunami: ["tsunami"],
   volcano: ["volcano"],
   flood: ["flood"],
   landslide: ["landslide", "avalanche"],
@@ -22,12 +22,22 @@ const normalizeDisasterType = (type) => {
 
 // Enhanced matching function
 const checkDisasterTypeMatch = (postType, selectedType) => {
+  // If post type is tsunami, never match
+  if (postType && normalizeDisasterType(postType) === 'tsunami') {
+    return false;
+  }
+
+  // If tsunami is selected, don't match any posts
+  if (selectedType === 'tsunami') {
+    return false;
+  }
+
   // If no post type, match only with 'all' or 'other'
   if (!postType) {
     return selectedType === 'all' || selectedType === 'other';
   }
 
-  // All category matches everything
+  // All category matches everything (except tsunami which is handled above)
   if (selectedType === 'all') {
     return true;
   }
@@ -111,6 +121,15 @@ function TweetFeed({ selectedDisaster }) {
 
   // FETCH TWEETS FUNCTION
   const fetchTweets = useCallback(async (isInitialLoad = false) => {
+    // If tsunami is selected, don't fetch any tweets
+    if (selectedDisasterRef.current === 'tsunami') {
+      setLoading(false);
+      setTweets([]);
+      setHasMore(false);
+      initialLoadComplete.current = true;
+      return;
+    }
+
     // Generate a unique operation ID to track this specific fetch
     const operationId = Date.now();
     currentOperationRef.current = operationId;
@@ -153,18 +172,23 @@ function TweetFeed({ selectedDisaster }) {
         throw new Error("Invalid data format returned from API");
       }
 
-      // Format posts for display
-      const formattedTweets = data.posts.map(post => ({
-        uri: post.post_id,
-        handle: post.handle || post.username || (post.user_id ? String(post.user_id).substring(0, 10) + '...' : ''),
-        display_name: post.display_name?.trim() || post.handle || "Unknown User",
-        text: post.original_text || post.clean_text || "",
-        timestamp: post.created_at,
-        avatar: post.avatar_url || "/default-avatar.jpg",
-        disaster_type: post.disaster_type,
-        confidence_score: post.confidence_score,
-        is_disaster: true
-      }));
+      // Format posts for display and filter out tsunami posts
+      const formattedTweets = data.posts
+          .filter(post => {
+            const postType = post.disaster_type?.toLowerCase();
+            return postType !== 'tsunami'; // Filter out tsunami posts
+          })
+          .map(post => ({
+            uri: post.post_id,
+            handle: post.handle || post.username || (post.user_id ? String(post.user_id).substring(0, 10) + '...' : ''),
+            display_name: post.display_name?.trim() || post.handle || "Unknown User",
+            text: post.original_text || post.clean_text || "",
+            timestamp: post.created_at,
+            avatar: post.avatar_url || "/default-avatar.jpg",
+            disaster_type: post.disaster_type,
+            confidence_score: post.confidence_score,
+            is_disaster: true
+          }));
 
       // Update state safely
       if (token && !isInitialLoad) {
@@ -273,6 +297,11 @@ function TweetFeed({ selectedDisaster }) {
     const handleNewPost = (post) => {
       if (!post) return;
 
+      // Skip tsunami posts
+      if (post.disaster_type && post.disaster_type.toLowerCase() === 'tsunami') {
+        return;
+      }
+
       // Check if this post matches our current filter
       if (!checkDisasterTypeMatch(post.disaster_type, selectedDisasterRef.current)) {
         return;
@@ -328,6 +357,22 @@ function TweetFeed({ selectedDisaster }) {
     observer.observe(currentLoader);
     return () => observer.unobserve(currentLoader);
   }, [loading, hasMore, handleLoadMore]);
+
+  // Special case for tsunami - show empty state
+  if (selectedDisaster === 'tsunami') {
+    return (
+        <div className="tweet-section">
+          <div className="map-header">
+            <h3> </h3>
+          </div>
+          <div className="tweet-feed">
+            <div className="no-tweets-message">
+              No disaster tweets found for this category
+            </div>
+          </div>
+        </div>
+    );
+  }
 
   // Render loading state
   if (loading && tweets.length === 0) {

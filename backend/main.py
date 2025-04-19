@@ -810,8 +810,7 @@ def process_keyword_feed(dynamodb, tokenizer, model, id2label, client):
                                         media_urls.append(image_url)
 
                             # Predict disaster type
-                            predicted_label, confidence_score = predict_disaster(tokenizer, model, id2label,
-                                                                                 cleaned_text)
+                            predicted_label, confidence_score = predict_disaster(tokenizer, model, id2label, cleaned_text)
 
                             # Two different thresholds
                             threshold = 0.1  # Lower threshold for JSON/logging
@@ -822,33 +821,39 @@ def process_keyword_feed(dynamodb, tokenizer, model, id2label, client):
                             is_disaster_db = confidence_score >= db_threshold
 
                             # Store user
-                            user_data = {
-                                'user_id': did,
-                                'handle': handle,
-                                'display_name': display_name,
-                                'avatar_url': avatar_url
-                            }
-                            put_user(dynamodb, user_data)
+                            if is_disaster_db:
+                                user_data = {
+                                    'user_id': did,
+                                    'handle': handle,
+                                    'display_name': display_name,
+                                    'avatar_url': avatar_url
+                                }
+                                put_user(dynamodb, user_data)
+                            else:
+                                logger.info(f"Skipping adding user")
 
                             # Store post
-                            post_data = {
-                                'post_id': uri,
-                                'user_id': did,
-                                'handle': handle,
-                                'display_name': display_name,
-                                'avatar_url': avatar_url,
-                                'original_text': text,
-                                'clean_text': cleaned_text,
-                                'created_at': created_at,
-                                'indexed_at': indexed_at,
-                                'location_name': "",
-                                'media_urls': media_urls,
-                                'disaster_type': predicted_label,
-                                'confidence_score': confidence_score,
-                                'is_disaster': is_disaster_db,
-                                'language': 'en'  # We've verified it's English
-                            }
-                            put_post(dynamodb, post_data)
+                            if is_disaster_db:
+                                post_data = {
+                                    'post_id': uri,
+                                    'user_id': did,
+                                    'handle': handle,
+                                    'display_name': display_name,
+                                    'avatar_url': avatar_url,
+                                    'original_text': text,
+                                    'clean_text': cleaned_text,
+                                    'created_at': created_at,
+                                    'indexed_at': indexed_at,
+                                    'location_name': "",
+                                    'media_urls': media_urls,
+                                    'disaster_type': predicted_label,
+                                    'confidence_score': confidence_score,
+                                    'is_disaster': is_disaster_db,
+                                    'language': 'en'
+                                }
+                                put_post(dynamodb, post_data)
+                            else:
+                                logger.info(f"Skipping non-disaster post (confidence: {confidence_score}): {uri}")
 
                             # Prepare post data for JSON
                             json_post_data = {
