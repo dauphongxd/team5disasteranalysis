@@ -1921,6 +1921,25 @@ html {
     padding-bottom: 5px;
 }
 
+/* popup banner */
+.banner-message {
+    position: fixed;
+    bottom: 20px; /* Position it slightly above the bottom */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Adjust for centering */
+    background: black;
+    color: white;
+    text-align: center;
+    padding: 10px 20px; /* Add some padding for better appearance */
+    font-size: 16px;
+    border-radius: 5px; /* Optional: Rounded corners */
+    z-index: 1000;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Optional shadow for better look */
+    max-width: fit-content; /* Adjusts the width to the content size */
+}
+
+  
+
 /* When animations are disabled */
 /*
 .animations-disabled .app-footer h3 {

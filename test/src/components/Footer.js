@@ -45,9 +45,26 @@ function Footer({ selectedDisaster = "all" }) {
                             <a href="https://github.com/dauphongxd/team5disasteranalysis" target="_blank" rel="noopener noreferrer" className="logo-link">
                                 <img src={githubLogo} alt="GitHub Logo" className="logo" />
                             </a> 
-                            <a href="" target="_blank" rel="noopener noreferrer" className="logo-link">
-                                <img src={email} alt="GitHub Logo" className="logo" />
-                            </a>
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    navigator.clipboard.writeText("example@example.com"); // Replace with your email
+
+                                    // Create banner
+                                    const banner = document.createElement("div");
+                                    banner.textContent = "Email copied!";
+                                    banner.className = "banner-message"; // Add class for styling
+                                    document.body.appendChild(banner);
+
+                                    // Remove banner after 2 seconds
+                                    setTimeout(() => banner.remove(), 2000);
+                                }}
+                                className="logo-link"
+                                >
+                                <img src={email} alt="copy email" className="logo" />
+                                </a>
+
                         </div>
                         
                     </div>
