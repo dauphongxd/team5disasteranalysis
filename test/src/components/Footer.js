@@ -39,7 +39,7 @@ function Footer({ selectedDisaster = "all" }) {
                             <p>Learn more about our team and our projects.</p>
                         </div>
                         <div className="logo-container">
-                            <a href="#" target="_blank" rel="noopener noreferrer" className="logo-link about-link">
+                            <a href="Team5.pdf" target="_blank" rel="noopener noreferrer" className="logo-link about-link">
                                 About
                             </a>
                             <a href="https://github.com/dauphongxd/team5disasteranalysis" target="_blank" rel="noopener noreferrer" className="logo-link">
@@ -49,7 +49,7 @@ function Footer({ selectedDisaster = "all" }) {
                                 href="#"
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    navigator.clipboard.writeText("example@example.com"); // Replace with your email
+                                    navigator.clipboard.writeText("axd200083@utdallas.edu"); //Ashish email
 
                                     // Create banner
                                     const banner = document.createElement("div");
