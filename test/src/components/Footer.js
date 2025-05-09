@@ -39,7 +39,7 @@ function Footer({ selectedDisaster = "all" }) {
                             <p>Learn more about our team and our projects.</p>
                         </div>
                         <div className="logo-container">
-                            <a href="Team5.pdf" target="_blank" rel="noopener noreferrer" className="logo-link about-link">
+                            <a href="/Team5.pdf" target="_blank" rel="noopener noreferrer" className="logo-link about-link">
                                 About
                             </a>
                             <a href="https://github.com/dauphongxd/team5disasteranalysis" target="_blank" rel="noopener noreferrer" className="logo-link">
@@ -79,7 +79,7 @@ function Footer({ selectedDisaster = "all" }) {
                         official guidance from local authorities during emergencies.
                     </p>
                     <p className="copyright">
-                        © {new Date().getFullYear()} Disaster Watch | <a href="#privacy">Privacy Policy</a> | <a href="#terms">Terms of Use</a>
+                        © {new Date().getFullYear()} Disaster Watch
                     </p>
                 </div>
             </div>
